@@ -11,10 +11,9 @@ use std::rc::Rc;
 use anyhow::Result;
 use gpui::{
     AnyView, App, AsyncWindowContext, Bounds, ContentMask, Context, Corner, CursorStyle, DispatchPhase, ElementId,
-    FocusHandle, FontWeight, HitboxBehavior, KeyBinding, Modifiers, MouseButton, MouseDownEvent,
-    MouseMoveEvent, MouseUpEvent, PathPromptOptions, Pixels, Point, PromptLevel, Render, ScrollDelta,
-    ScrollWheelEvent, SharedString, WeakEntity, Window, actions, anchored, canvas, deferred, div, fill, img,
-    point, prelude::*, px, svg,
+    FocusHandle, FontWeight, HitboxBehavior, KeyBinding, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent,
+    MouseUpEvent, PathPromptOptions, Pixels, Point, PromptLevel, Render, ScrollDelta, ScrollWheelEvent, SharedString,
+    WeakEntity, Window, actions, anchored, canvas, deferred, div, fill, img, point, prelude::*, px, svg,
 };
 use pizarra::{
     app::{Pizarra, SaveStatus, SelectedTool, ShouldRedraw},
@@ -473,7 +472,12 @@ impl PizarraWindow {
         Ok(answer.await.ok())
     }
 
-    async fn show_error(this: &WeakEntity<Self>, cx: &mut AsyncWindowContext, message: &str, detail: &str) -> Result<()> {
+    async fn show_error(
+        this: &WeakEntity<Self>,
+        cx: &mut AsyncWindowContext,
+        message: &str,
+        detail: &str,
+    ) -> Result<()> {
         Self::ask(this, cx, PromptLevel::Critical, message, Some(detail), &["Chales"]).await?;
         Ok(())
     }
@@ -490,7 +494,8 @@ impl PizarraWindow {
             (SaveStatus::Unsaved(_), Discard::Close) => CLOSE_SINCE_LAST_TIME,
         };
 
-        let answer = Self::ask(this, cx, PromptLevel::Warning, message, Some(detail), &["Sí", "No", "Cancelar"]).await?;
+        let answer =
+            Self::ask(this, cx, PromptLevel::Warning, message, Some(detail), &["Sí", "No", "Cancelar"]).await?;
         match answer {
             Some(0) => Self::save_flow(this, cx, false).await,
             Some(1) => Ok(true),
@@ -804,7 +809,8 @@ impl PizarraWindow {
             self.shapes.invalidate();
         }
 
-        let hint = self.controller.handle_mouse_move_flags(self.to_canvas(event.position), flags(&event.modifiers), None);
+        let hint =
+            self.controller.handle_mouse_move_flags(self.to_canvas(event.position), flags(&event.modifiers), None);
         self.redraw(hint, cx);
     }
 
@@ -843,8 +849,7 @@ impl PizarraWindow {
 
     fn paint_canvas(&mut self, bounds: Bounds<Pixels>, window: &mut Window) {
         if self.canvas_bounds.map(|b| b.size) != Some(bounds.size) {
-            self.controller
-                .resize(Vec2D::new_screen(f64::from(bounds.size.width), f64::from(bounds.size.height)));
+            self.controller.resize(Vec2D::new_screen(f64::from(bounds.size.width), f64::from(bounds.size.height)));
             self.shapes.invalidate();
         }
         self.canvas_bounds = Some(bounds);
@@ -914,14 +919,7 @@ impl PizarraWindow {
 
         let color_button = self
             .popover_button(Popover::Color, "Color del trazo (Alt+C)", cx)
-            .child(
-                div()
-                    .size(px(20.))
-                    .rounded_full()
-                    .border_1()
-                    .border_color(theme::muted())
-                    .bg(swatch),
-            );
+            .child(div().size(px(20.)).rounded_full().border_1().border_color(theme::muted()).bg(swatch));
         let tool_button = self
             .popover_button(Popover::Tools, "Cambia la herramienta de dibujo", cx)
             .child(icon(self.tool.icon(), theme::accent()));
@@ -965,9 +963,11 @@ impl PizarraWindow {
             .child(thickness_button)
             .child(alpha_button)
             .child(separator())
-            .child(self.icon_button("undo", "icons/undo.svg", "Deshacer (Ctrl+Z)", cx, |this, w, cx| {
-                this.undo(&Undo, w, cx)
-            }))
+            .child(
+                self.icon_button("undo", "icons/undo.svg", "Deshacer (Ctrl+Z)", cx, |this, w, cx| {
+                    this.undo(&Undo, w, cx)
+                }),
+            )
             .child(self.icon_button("redo", "icons/redo.svg", "Rehacer (Ctrl+Shift+Z)", cx, |this, w, cx| {
                 this.redo(&Redo, w, cx)
             }))
@@ -1004,7 +1004,12 @@ impl PizarraWindow {
 
     /// A header bar button that opens `popover`, remembering where it is so
     /// the popover can be placed under it.
-    fn popover_button(&self, popover: Popover, tooltip_text: &'static str, cx: &Context<Self>) -> gpui::Stateful<gpui::Div> {
+    fn popover_button(
+        &self,
+        popover: Popover,
+        tooltip_text: &'static str,
+        cx: &Context<Self>,
+    ) -> gpui::Stateful<gpui::Div> {
         let anchors = self.anchors.clone();
         let open = self.popover == Some(popover);
         button_base(ElementId::Name(format!("popover-{popover:?}").into()))
@@ -1058,19 +1063,23 @@ impl PizarraWindow {
                 .on_mouse_down(MouseButton::Middle, close())
                 .on_mouse_down(MouseButton::Right, close())
                 .child(
-                    anchored().anchor(corner).position(position + point(px(0.), px(4.))).snap_to_window_with_margin(px(8.)).child(
-                        div()
-                            .id("popover")
-                            .occlude()
-                            .p_2()
-                            .rounded_lg()
-                            .bg(theme::popover_bg())
-                            .border_1()
-                            .border_color(theme::border())
-                            .shadow_lg()
-                            .text_color(theme::text())
-                            .child(content),
-                    ),
+                    anchored()
+                        .anchor(corner)
+                        .position(position + point(px(0.), px(4.)))
+                        .snap_to_window_with_margin(px(8.))
+                        .child(
+                            div()
+                                .id("popover")
+                                .occlude()
+                                .p_2()
+                                .rounded_lg()
+                                .bg(theme::popover_bg())
+                                .border_1()
+                                .border_color(theme::border())
+                                .shadow_lg()
+                                .text_color(theme::text())
+                                .child(content),
+                        ),
                 ),
         )
         .with_priority(1)
@@ -1135,25 +1144,26 @@ impl PizarraWindow {
 
     fn render_color_popover(&self, cx: &Context<Self>) -> impl IntoElement {
         let current = self.color;
-        let palette = div().flex().flex_row().gap_1().children(theme::PALETTE.iter().enumerate().map(|(col, shades)| {
-            div().flex().flex_col().gap_1().children(shades.iter().enumerate().map(move |(row, &hex)| {
-                let color = theme::palette_color(hex);
-                let selected = color == current;
-                div()
-                    .id(ElementId::NamedInteger("swatch".into(), (col * 5 + row) as u64))
-                    .size(px(26.))
-                    .rounded_md()
-                    .cursor_pointer()
-                    .bg(theme::to_hsla(color))
-                    .border_2()
-                    .border_color(if selected { theme::text() } else { theme::border() })
-                    .hover(|s| s.border_color(theme::muted()))
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.set_color(color, cx);
-                        this.close_popover(cx);
-                    }))
-            }))
-        }));
+        let palette =
+            div().flex().flex_row().gap_1().children(theme::PALETTE.iter().enumerate().map(|(col, shades)| {
+                div().flex().flex_col().gap_1().children(shades.iter().enumerate().map(move |(row, &hex)| {
+                    let color = theme::palette_color(hex);
+                    let selected = color == current;
+                    div()
+                        .id(ElementId::NamedInteger("swatch".into(), (col * 5 + row) as u64))
+                        .size(px(26.))
+                        .rounded_md()
+                        .cursor_pointer()
+                        .bg(theme::to_hsla(color))
+                        .border_2()
+                        .border_color(if selected { theme::text() } else { theme::border() })
+                        .hover(|s| s.border_color(theme::muted()))
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.set_color(color, cx);
+                            this.close_popover(cx);
+                        }))
+                }))
+            }));
 
         let channel = |label: &'static str, slider: Slider, value: u8| {
             div()
@@ -1400,7 +1410,12 @@ impl PizarraWindow {
                         .text_color(theme::text())
                         .child(img("pizarra128.png").size(px(96.)))
                         .child(div().text_xl().font_weight(FontWeight::BOLD).child("Pizarra"))
-                        .child(div().text_sm().text_color(theme::muted()).child(concat!("Versión ", env!("CARGO_PKG_VERSION"))))
+                        .child(
+                            div()
+                                .text_sm()
+                                .text_color(theme::muted())
+                                .child(concat!("Versión ", env!("CARGO_PKG_VERSION"))),
+                        )
                         .child(div().mt_1().child("Como un pizarrón de gis, pero digital, vectorial e infinito."))
                         .child(
                             div()
@@ -1412,11 +1427,17 @@ impl PizarraWindow {
                                 .on_click(|_, _, cx| cx.open_url("https://pizarra.categulario.xyz"))
                                 .child("pizarra.categulario.xyz"),
                         )
-                        .child(div().mt_2().flex().flex_col().items_center()
-                            .child(line("Copyright 2022 Abraham Toriz"))
-                            .child(line("Contribuciones de Federico Mena, @tyoc213"))
-                            .child(line("Interfaz GPUI basada en pizarra-gtk"))
-                            .child(line("Licencia GPL 3.0 o posterior")))
+                        .child(
+                            div()
+                                .mt_2()
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .child(line("Copyright 2022 Abraham Toriz"))
+                                .child(line("Contribuciones de Federico Mena, @tyoc213"))
+                                .child(line("Interfaz GPUI basada en pizarra-gtk"))
+                                .child(line("Licencia GPL 3.0 o posterior")),
+                        )
                         .child(
                             button_base("about-close")
                                 .mt_3()

@@ -36,10 +36,7 @@ pub struct Assets;
 
 impl AssetSource for Assets {
     fn load(&self, path: &str) -> Result<Option<Cow<'static, [u8]>>> {
-        Ok(ASSETS
-            .iter()
-            .find(|(name, _)| *name == path)
-            .map(|(_, bytes)| Cow::Borrowed(*bytes)))
+        Ok(ASSETS.iter().find(|(name, _)| *name == path).map(|(_, bytes)| Cow::Borrowed(*bytes)))
     }
 
     fn list(&self, path: &str) -> Result<Vec<SharedString>> {

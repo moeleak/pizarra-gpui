@@ -130,10 +130,7 @@ impl Affine {
     }
 
     pub fn apply(&self, x: f64, y: f64) -> Pt {
-        Pt::new(
-            self.xx * x + self.xy * y + self.x0,
-            self.yx * x + self.yy * y + self.y0,
-        )
+        Pt::new(self.xx * x + self.xy * y + self.x0, self.yx * x + self.yy * y + self.y0)
     }
 
     fn apply_vec<T: Unit>(&self, p: Vec2D<T>) -> Pt {
@@ -180,14 +177,7 @@ fn push_command(out: &mut Vec<Primitive>, command: &DrawCommand, world: Affine, 
             }
         }
         DrawCommand::ScreenCircle { center, radius, style } => {
-            let segments = conic_segments(
-                screen,
-                center.x.val(),
-                center.y.val(),
-                radius.val(),
-                radius.val(),
-                0.0,
-            );
+            let segments = conic_segments(screen, center.x.val(), center.y.val(), radius.val(), radius.val(), 0.0);
             if let Some(segments) = segments {
                 push_primitive(out, segments, style, screen);
             }
@@ -204,11 +194,9 @@ fn push_path<T: Unit + 'static>(out: &mut Vec<Primitive>, commands: &[PathComman
         let seg = match *command {
             PathCommand::MoveTo(p) => Seg::MoveTo(t.apply_vec(p)),
             PathCommand::LineTo(p) => Seg::LineTo(t.apply_vec(p)),
-            PathCommand::CurveTo(CubicBezierCurve { pt1, pt2, to }) => Seg::CubicTo {
-                c1: t.apply_vec(pt1),
-                c2: t.apply_vec(pt2),
-                to: t.apply_vec(to),
-            },
+            PathCommand::CurveTo(CubicBezierCurve { pt1, pt2, to }) => {
+                Seg::CubicTo { c1: t.apply_vec(pt1), c2: t.apply_vec(pt2), to: t.apply_vec(to) }
+            }
         };
         // Every path must start with a MoveTo for the tessellators.
         let seg = match (segments.is_empty(), seg) {
@@ -250,7 +238,9 @@ fn push_primitive<T: Unit>(out: &mut Vec<Primitive>, segments: Vec<Seg>, style: 
     if let Some(first) = first
         && segments.iter().flat_map(Seg::points).all(|p| p.distance(first) < 1e-6)
     {
-        if let Some(dot) = conic_segments(Affine::IDENTITY, first.x, first.y, stroke.width / 2.0, stroke.width / 2.0, 0.0) {
+        if let Some(dot) =
+            conic_segments(Affine::IDENTITY, first.x, first.y, stroke.width / 2.0, stroke.width / 2.0, 0.0)
+        {
             out.push(Primitive { segments: dot, fill: Some(stroke.color), stroke: None });
         }
         return;
@@ -293,14 +283,7 @@ fn split_into_chunks(segments: Vec<Seg>) -> Vec<Vec<Seg>> {
 }
 
 fn ellipse_segments(e: &Ellipse<WorldUnit>, t: Affine) -> Option<Vec<Seg>> {
-    conic_segments(
-        t,
-        e.center.x.val(),
-        e.center.y.val(),
-        e.semimajor.val(),
-        e.semiminor.val(),
-        e.angle.radians(),
-    )
+    conic_segments(t, e.center.x.val(), e.center.y.val(), e.semimajor.val(), e.semiminor.val(), e.angle.radians())
 }
 
 /// Four cubic Béziers approximating the ellipse centered at `(cx, cy)` with
@@ -333,11 +316,7 @@ fn conic_segments(t: Affine, cx: f64, cy: f64, a: f64, b: f64, angle: f64) -> Op
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pizarra::{
-        geom::Angle,
-        point::ScreenUnit,
-        style::Stroke,
-    };
+    use pizarra::{geom::Angle, point::ScreenUnit, style::Stroke};
 
     fn approx(a: Pt, b: Pt) -> bool {
         a.distance(b) < 1e-9
@@ -447,10 +426,8 @@ mod tests {
 
     #[test]
     fn fill_and_stroke_produce_two_primitives_fill_first() {
-        let style = Style {
-            fill: Some(Color::red()),
-            stroke: Some(Stroke { size: 1.0.into(), color: Color::white() }),
-        };
+        let style =
+            Style { fill: Some(Color::red()), stroke: Some(Stroke { size: 1.0.into(), color: Color::white() }) };
         let cmd = DrawCommand::ScreenCircle { center: Vec2D::new_screen(0.0, 0.0), radius: 5.0.into(), style };
         let prims = primitives(&[cmd], Affine::IDENTITY, Affine::IDENTITY);
 
@@ -474,7 +451,8 @@ mod tests {
             assert_eq!(pair[1].segments[0], Seg::MoveTo(prev_end));
             assert!(pair[0].segments.len() <= MAX_SEGMENTS_PER_CHUNK + 1);
         }
-        let drawn: usize = prims.iter().map(|p| p.segments.iter().filter(|s| matches!(s, Seg::LineTo(_))).count()).sum();
+        let drawn: usize =
+            prims.iter().map(|p| p.segments.iter().filter(|s| matches!(s, Seg::LineTo(_))).count()).sum();
         assert_eq!(drawn, 1000);
     }
 

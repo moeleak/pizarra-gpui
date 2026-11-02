@@ -39,13 +39,7 @@ pub fn scrim() -> Rgba {
 }
 
 pub fn to_hsla(c: Color) -> Hsla {
-    Rgba {
-        r: c.r as f32 / 255.0,
-        g: c.g as f32 / 255.0,
-        b: c.b as f32 / 255.0,
-        a: c.a as f32 / 255.0,
-    }
-    .into()
+    Rgba { r: c.r as f32 / 255.0, g: c.g as f32 / 255.0, b: c.b as f32 / 255.0, a: c.a as f32 / 255.0 }.into()
 }
 
 /// The GNOME palette, the one GTK's color chooser shows by default: one column

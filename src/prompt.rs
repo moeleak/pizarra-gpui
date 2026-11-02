@@ -61,7 +61,9 @@ impl Render for PromptView {
                 .rounded_md()
                 .cursor_pointer()
                 .text_sm()
-                .when(primary, |b| b.bg(theme::accent()).text_color(theme::accent_text()).font_weight(FontWeight::SEMIBOLD))
+                .when(primary, |b| {
+                    b.bg(theme::accent()).text_color(theme::accent_text()).font_weight(FontWeight::SEMIBOLD)
+                })
                 .when(!primary, |b| b.bg(theme::hover()).hover(|s| s.bg(theme::pressed())))
                 .child(label.clone())
                 .on_click(cx.listener(move |_, _, _, cx| cx.emit(PromptResponse(ix))))
