@@ -1,0 +1,135 @@
+# Pizarra (GPUI)
+
+A free-hand vector drawing application with an infinite canvas and infinite
+zoom¹, rewritten on [GPUI](https://www.gpui.rs/), the GPU-accelerated UI
+framework behind the Zed editor.
+
+This is a port of [pizarra-gtk](https://gitlab.com/categulario/pizarra-gtk)
+(1.7.5) by Abraham Toriz. As in the original, the interesting part (shapes,
+tools, undo, transforms and the SVG file format) lives in the
+[`pizarra`](https://codeberg.org/categulario/pizarra) engine crate; this
+repository is the frontend: a GPUI window, toolbar, canvas renderer and the
+file dialogs. The interface keeps the original's Spanish texts and shortcuts.
+
+## Features
+
+- Pen, rectangle, polygon, circle (center + point, three points), ellipse
+  (foci + point), grid, free grid and eraser tools.
+- Stroke color (GNOME palette or custom RGB), thickness and opacity.
+- Pan with the middle mouse button or the scroll wheel, rotate with
+  Shift + wheel, zoom in/out/home.
+- Undo / redo.
+- Files are plain SVG, compatible with pizarra-gtk. SVGs made with other
+  programs are imported as far as the engine understands them; in that case
+  *Save* asks for a new file instead of overwriting the original.
+- Export to PNG (bounding box of the drawing plus padding), rendered off the
+  UI thread.
+- Asks before throwing away unsaved strokes (new, open, close, quit).
+- Reads the same configuration file as pizarra-gtk.
+
+## Keyboard shortcuts
+
+| Action | Keys |
+| --- | --- |
+| New / Open / Save / Save as | `Ctrl+N` / `Ctrl+O` / `Ctrl+S` / `Ctrl+Shift+S` |
+| Export to PNG | `Ctrl+Shift+E` |
+| Undo / Redo | `Ctrl+Z` / `Ctrl+Shift+Z` (or `Ctrl+Y`) |
+| Quit | `Ctrl+Q` |
+| Pen, Rectangle, Polygon | `L`, `R`, `P` |
+| Circle (center), Circle (3 points), Ellipse | `C`, `K`, `E` |
+| Grid, Free grid, Eraser | `Q`, `Alt+Q`, `G` |
+| Color chooser | `Alt+C` |
+| Zoom in / out / home | `+` / `-` / `0` |
+| Full screen | `F11` |
+| Cancel the shape being drawn, close popovers | `Esc` |
+
+## Running with Nix
+
+The flake builds for `x86_64-linux` and `aarch64-linux`:
+
+```sh
+nix run github:moeleak/pizarra-gpui            # run it
+nix run github:moeleak/pizarra-gpui -- dibujo.svg
+nix build                                       # ./result/bin/pizarra-gpui
+nix develop                                     # cargo, rustc, clippy, rust-analyzer
+nix flake check
+```
+
+The package installs a desktop entry and icon, and patches the binary's
+RUNPATH with the libraries GPUI loads at runtime (Vulkan loader, Wayland,
+xkbcommon, X11/xcb, fontconfig). Inside `nix develop` those are on
+`LD_LIBRARY_PATH`, so `cargo run` works directly.
+
+GPUI renders with Vulkan, so the host needs a Vulkan driver. On NixOS that is
+`hardware.graphics.enable = true`. On other distributions, a Nix-built binary
+may need [nixGL](https://github.com/nix-community/nixGL) to find the host's
+driver.
+
+## Building without Nix
+
+You need a recent stable Rust and the development packages for
+fontconfig, freetype, libxkbcommon, libxcb, libX11, Wayland and the Vulkan
+loader (e.g. on Debian/Ubuntu: `libfontconfig-dev libfreetype-dev
+libxkbcommon-x11-dev libxcb1-dev libx11-dev libwayland-dev libvulkan-dev`).
+
+```sh
+cargo run --release -- [dibujo.svg]
+cargo test
+```
+
+Open/save dialogs go through the XDG desktop portal (`xdg-desktop-portal`
+plus a backend such as `-gtk`, `-gnome` or `-kde`).
+
+## Configuration
+
+Like pizarra-gtk, the configuration is read from `$PIZARRA_CONFIG` or
+`~/.config/pizarra/config.toml`, and a default file is written there on
+first run:
+
+```toml
+thickness = 2.0            # starting stroke width
+export_padding = 20.0      # PNG/SVG margin around the drawing
+erase_radius = 10.0
+point_snap_radius = 10.0
+zoom_factor = 2.0
+background_color = "#000000FF"
+stroke_color = "#FFFFFFFF"
+scroll_factor = -5.0       # pixels per wheel notch (sign = direction)
+```
+
+## Differences from pizarra-gtk
+
+- Uses pizarra engine 3.0.1 (pizarra-gtk 1.7.5 used 2.0.4).
+- GTK's color chooser, scale buttons and header bar are replaced by GPUI
+  popovers. A palette, RGB sliders, and thickness/opacity sliders that also
+  respond to the scroll wheel.
+- Undo/redo buttons in the header bar; *Full screen* (`F11`) now works.
+- Fills are painted under strokes. With cairo, stroking consumed the path, so
+  a shape with both lost its fill.
+- GPUI does not report pen tool types, so a stylus' eraser end doesn't switch
+  to the eraser automatically. Pick the eraser with `G`.
+- Saving writes to a temporary file and renames it, so a failed save never
+  truncates the drawing.
+
+## Layout
+
+```
+src/main.rs      startup, CLI, window
+src/app.rs       the window view: header bar, popovers, input, file flows
+src/canvas.rs    GPUI path tessellation and the cached layer of stored shapes
+src/geometry.rs  pizarra draw commands → renderer-agnostic paths (unit tested)
+src/export.rs    PNG export with tiny-skia
+src/config.rs    configuration file
+src/prompt.rs    themed dialogs
+nix/package.nix  the Nix package; flake.nix wires it up
+```
+
+## License
+
+GPL-3.0-or-later, like pizarra-gtk. The tool icons and the application icon
+come from pizarra-gtk.
+
+---
+
+1. The canvas and zoom are bounded by 64-bit floating point precision, which
+   for everyday use is a very large drawing space.

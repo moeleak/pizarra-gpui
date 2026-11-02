@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=Pizarra
+GenericName=Take notes
+Comment=Free-hand vector drawing with an infinite canvas
+TryExec=pizarra-gpui
+Exec=pizarra-gpui %f
+Icon=pizarra-gpui
+Terminal=false
+Type=Application
+MimeType=image/svg+xml;
+StartupNotify=false
+StartupWMClass=tk.categulario.pizarra-gpui
+Categories=Graphics;VectorGraphics;
+Keywords=drawing;whiteboard;slideshow;
