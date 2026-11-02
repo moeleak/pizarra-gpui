@@ -11,6 +11,8 @@ tools, undo, transforms and the SVG file format) lives in the
 repository is the frontend: a GPUI window, toolbar, canvas renderer and the
 file dialogs. The interface keeps the original's Spanish texts and shortcuts.
 
+![Pizarra running on GPUI](docs/screenshot.png)
+
 ## Features
 
 - Pen, rectangle, polygon, circle (center + point, three points), ellipse
