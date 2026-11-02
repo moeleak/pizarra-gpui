@@ -17,8 +17,13 @@ use gpui::{
     point, prelude::*, px, svg,
 };
 use pizarra::{
-    Pizarra, SaveStatus, SelectedTool, ShapeTool, ShouldRedraw, Vec2D, color::Color,
-    deserialize::DeserializeResult, key::Key, point::Unit, ui::Flags,
+    app::{Pizarra, SaveStatus, SelectedTool, ShouldRedraw},
+    color::Color,
+    deserialize::DeserializeResult,
+    key::Key,
+    point::{ScreenUnit, Unit, Vec2D},
+    shape::ShapeTool,
+    ui::Flags,
 };
 
 use crate::canvas::{self, ShapeLayer};
@@ -487,7 +492,7 @@ impl PizarraWindow {
 
         let answer = Self::ask(this, cx, PromptLevel::Warning, message, Some(detail), &["Sí", "No", "Cancelar"]).await?;
         match answer {
-            Some(0) => Self::save(this, cx, false).await,
+            Some(0) => Self::save_flow(this, cx, false).await,
             Some(1) => Ok(true),
             _ => Ok(false),
         }
@@ -495,7 +500,7 @@ impl PizarraWindow {
 
     /// Saves to the current file, asking for one when there is none or when
     /// `ask` is set. `Ok(true)` when the drawing was written.
-    async fn save(this: &WeakEntity<Self>, cx: &mut AsyncWindowContext, ask: bool) -> Result<bool> {
+    async fn save_flow(this: &WeakEntity<Self>, cx: &mut AsyncWindowContext, ask: bool) -> Result<bool> {
         let (current, dir, name) =
             this.read_with(cx, |this, _| (this.current_path(), this.dialog_dir(), this.suggested_name("svg")))?;
 
@@ -611,7 +616,7 @@ impl PizarraWindow {
         match self.controller.get_save_status() {
             SaveStatus::NewAndEmpty | SaveStatus::Saved(_) => {}
             SaveStatus::NewAndChanged | SaveStatus::Unsaved(_) => {
-                self.run_flow(window, cx, async |this, cx| Self::save(&this, cx, false).await.map(drop));
+                self.run_flow(window, cx, async |this, cx| Self::save_flow(&this, cx, false).await.map(drop));
             }
         }
     }
@@ -620,7 +625,7 @@ impl PizarraWindow {
         if matches!(self.controller.get_save_status(), SaveStatus::NewAndEmpty) {
             return;
         }
-        self.run_flow(window, cx, async |this, cx| Self::save(&this, cx, true).await.map(drop));
+        self.run_flow(window, cx, async |this, cx| Self::save_flow(&this, cx, true).await.map(drop));
     }
 
     fn export(&mut self, _: &Export, window: &mut Window, cx: &mut Context<Self>) {
@@ -767,7 +772,7 @@ impl PizarraWindow {
     // ---------------------------------------------------------------------
     // Canvas input
 
-    fn to_canvas(&self, position: Point<Pixels>) -> Vec2D<pizarra::ScreenUnit> {
+    fn to_canvas(&self, position: Point<Pixels>) -> Vec2D<ScreenUnit> {
         let origin = self.canvas_bounds.map(|b| b.origin).unwrap_or_default();
         Vec2D::new_screen(f64::from(position.x - origin.x), f64::from(position.y - origin.y))
     }
@@ -1039,7 +1044,7 @@ impl PizarraWindow {
             Popover::Menu => self.render_menu_popover(cx).into_any_element(),
         };
 
-        let close = |cx: &Context<Self>| cx.listener(|this, _: &MouseDownEvent, _, cx| this.close_popover(cx));
+        let close = || cx.listener(|this, _: &MouseDownEvent, _, cx| this.close_popover(cx));
 
         deferred(
             div()
@@ -1049,9 +1054,9 @@ impl PizarraWindow {
                 .left_0()
                 .size_full()
                 .occlude()
-                .on_mouse_down(MouseButton::Left, close(cx))
-                .on_mouse_down(MouseButton::Middle, close(cx))
-                .on_mouse_down(MouseButton::Right, close(cx))
+                .on_mouse_down(MouseButton::Left, close())
+                .on_mouse_down(MouseButton::Middle, close())
+                .on_mouse_down(MouseButton::Right, close())
                 .child(
                     anchored().anchor(corner).position(position + point(px(0.), px(4.))).snap_to_window_with_margin(px(8.)).child(
                         div()
@@ -1085,7 +1090,9 @@ impl PizarraWindow {
 
     fn render_menu_popover(&self, cx: &Context<Self>) -> impl IntoElement {
         type Handler = fn(&mut PizarraWindow, &mut Window, &mut Context<PizarraWindow>);
-        let sections: [(&str, &[(&str, &str, Handler)]); 4] = [
+        /// Label, shortcut hint and what to do.
+        type Item = (&'static str, &'static str, Handler);
+        let sections: [(&str, &[Item]); 4] = [
             (
                 "Archivo",
                 &[
@@ -1485,11 +1492,11 @@ fn alpha_u8(alpha: f64) -> u8 {
     (alpha.clamp(0.0, 1.0) * 255.0).round() as u8
 }
 
-fn to_pizarra_button(button: MouseButton) -> Option<pizarra::MouseButton> {
+fn to_pizarra_button(button: MouseButton) -> Option<pizarra::app::MouseButton> {
     match button {
-        MouseButton::Left => Some(pizarra::MouseButton::Left),
-        MouseButton::Middle => Some(pizarra::MouseButton::Middle),
-        MouseButton::Right => Some(pizarra::MouseButton::Right),
+        MouseButton::Left => Some(pizarra::app::MouseButton::Left),
+        MouseButton::Middle => Some(pizarra::app::MouseButton::Middle),
+        MouseButton::Right => Some(pizarra::app::MouseButton::Right),
         MouseButton::Navigate(_) => None,
     }
 }

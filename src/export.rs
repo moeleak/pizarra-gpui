@@ -6,7 +6,7 @@
 use std::path::Path;
 
 use anyhow::{Context as _, Result, bail};
-use pizarra::{Pizarra, color::Color, point::Unit};
+use pizarra::{app::Pizarra, color::Color, point::Unit};
 use tiny_skia::{FillRule, LineCap, LineJoin, Paint, PathBuilder, Pixmap, Stroke, Transform};
 
 use crate::geometry::{self, Affine, Primitive, Seg};
@@ -115,7 +115,7 @@ fn skia_color(c: Color) -> tiny_skia::Color {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pizarra::{MouseButton, Vec2D, config::Config};
+    use pizarra::{app::MouseButton, config::Config, point::Vec2D};
 
     fn drawing_with_a_stroke() -> Pizarra {
         let config = Config { background_color: Color::black(), stroke_color: Color::white(), ..Config::default() };
@@ -146,9 +146,11 @@ mod tests {
         let expected_w = ((a.x.val() - b.x.val()).abs() + 2.0 * padding).ceil() as u32;
         assert_eq!(pixmap.width(), expected_w);
 
-        // Corners are background, the stroke is somewhere in the middle.
+        // Corners are background (pizarra's "black" is a chalkboard gray), the
+        // stroke is somewhere in the middle.
+        let bg = p.bgcolor();
         let corner = pixmap.pixel(0, 0).unwrap();
-        assert_eq!((corner.red(), corner.green(), corner.blue()), (0, 0, 0));
+        assert_eq!((corner.red(), corner.green(), corner.blue()), (bg.r, bg.g, bg.b));
         let has_white = pixmap.pixels().iter().any(|px| px.red() > 200 && px.green() > 200 && px.blue() > 200);
         assert!(has_white, "the stroke should be painted");
 

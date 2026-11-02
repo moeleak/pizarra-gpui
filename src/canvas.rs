@@ -22,7 +22,7 @@ pub type PaintedPaths = Vec<(Path<Pixels>, Hsla)>;
 
 /// Maps pizarra's world and screen coordinates to window coordinates for a
 /// canvas whose top-left corner is at `bounds.origin`.
-pub fn transforms(controller: &pizarra::Pizarra, bounds: Bounds<Pixels>) -> (Affine, Affine) {
+pub fn transforms(controller: &pizarra::app::Pizarra, bounds: Bounds<Pixels>) -> (Affine, Affine) {
     let (ox, oy) = (f64::from(bounds.origin.x), f64::from(bounds.origin.y));
     let world = Affine::from(controller.get_transform()).then_translate(ox, oy);
     let screen = Affine::translation(ox, oy);
@@ -108,7 +108,7 @@ impl ShapeLayer {
         self.built_for = None;
     }
 
-    pub fn paths(&mut self, controller: &pizarra::Pizarra, bounds: Bounds<Pixels>) -> &PaintedPaths {
+    pub fn paths(&mut self, controller: &pizarra::app::Pizarra, bounds: Bounds<Pixels>) -> &PaintedPaths {
         if self.built_for != Some(bounds) {
             let (world, screen) = transforms(controller, bounds);
             self.paths = build(&controller.draw_commands_for_screen(), world, screen, bounds);

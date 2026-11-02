@@ -92,7 +92,7 @@ export_padding = 20.0      # PNG/SVG margin around the drawing
 erase_radius = 10.0
 point_snap_radius = 10.0
 zoom_factor = 2.0
-background_color = "#000000FF"
+background_color = "#303633FF"  # chalkboard
 stroke_color = "#FFFFFFFF"
 scroll_factor = -5.0       # pixels per wheel notch (sign = direction)
 ```
