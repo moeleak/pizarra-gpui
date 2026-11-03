@@ -13,22 +13,55 @@ mod geometry;
 mod prompt;
 mod theme;
 
+use std::ffi::OsStr;
 use std::path::PathBuf;
 
 use gpui::{App, AppContext as _, Application, Bounds, TitlebarOptions, WindowBounds, WindowOptions, px, size};
 
 const USAGE: &str = "\
-Pizarra — tu pizarrón virtual de confianza
+Pizarra — your trustworthy virtual whiteboard
 
-Uso: pizarra-gpui [ARCHIVO.svg]
+Usage: pizarra-gpui [FILE.svg]
 
-Atajos: Ctrl+N nuevo, Ctrl+O abrir, Ctrl+S guardar, Ctrl+Shift+S guardar como,
-Ctrl+Shift+E exportar a PNG, Ctrl+Z / Ctrl+Shift+Z deshacer / rehacer,
-L R P C K E Q Alt+Q G herramientas, Alt+C color, + - 0 zoom, F11 pantalla completa.
+Shortcuts: Ctrl+N new, Ctrl+O open, Ctrl+S save, Ctrl+Shift+S save as,
+Ctrl+Shift+E export to PNG, Ctrl+Z / Ctrl+Shift+Z undo / redo,
+L R P C K E Q Alt+Q G tools, Alt+C color, + - 0 zoom, F11 full screen.
 
-Configuración: $PIZARRA_CONFIG o ~/.config/pizarra/config.toml";
+Configuration: $PIZARRA_CONFIG or ~/.config/pizarra/config.toml
+
+Graphics backend: $PIZARRA_BACKEND (x11 or wayland; x11 is preferred by
+default so that drawing tablets work).";
+
+/// GPUI cannot read tablet (pen) input on native Wayland, and since KWin 6.3
+/// and Mutter no longer emulate pens as mouse pointers a stylus cannot draw at
+/// all there. XWayland exposes tablets as ordinary XInput devices, which GPUI
+/// does understand, so use X11 whenever it is available. Set
+/// `PIZARRA_BACKEND=wayland` to keep the native Wayland backend (without pen
+/// support) and `PIZARRA_BACKEND=x11` to force the fallback.
+fn choose_backend() {
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    {
+        let requested = std::env::var_os("PIZARRA_BACKEND");
+        let use_wayland = match requested.as_deref() {
+            Some(backend) if backend == OsStr::new("wayland") => true,
+            Some(backend) if backend == OsStr::new("x11") => false,
+            _ => false,
+        };
+
+        if use_wayland {
+            return;
+        }
+        // GPUI picks Wayland whenever WAYLAND_DISPLAY is set. Clearing it
+        // makes it pick the X11/XWayland backend instead.
+        if std::env::var_os("DISPLAY").is_some_and(|display| !display.is_empty()) {
+            // SAFETY: called before any other thread is spawned.
+            unsafe { std::env::remove_var("WAYLAND_DISPLAY") };
+        }
+    }
+}
 
 fn main() {
+    choose_backend();
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
 
     let mut file = None;

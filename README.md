@@ -67,6 +67,18 @@ GPUI renders with Vulkan, so the host needs a Vulkan driver. On NixOS that is
 may need [nixGL](https://github.com/nix-community/nixGL) to find the host's
 driver.
 
+### Graphics tablets
+
+GPUI has no native Wayland tablet support, and KWin 6.3+ and Mutter no longer
+emulate a pen as a mouse pointer. A stylus therefore cannot draw when the
+window talks Wayland directly. Pizarra starts on the X11 backend (XWayland on
+Wayland sessions) whenever `DISPLAY` is available, because XWayland exposes
+tablets as normal XInput devices and the pen, including the crosshair cursor,
+works there.
+
+Set `PIZARRA_BACKEND=wayland` to use native Wayland without pen support, or
+`PIZARRA_BACKEND=x11` to force the X11 backend explicitly.
+
 ## Building without Nix
 
 You need a recent stable Rust and the development packages for
