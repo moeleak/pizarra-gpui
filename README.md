@@ -140,8 +140,11 @@ pen_pressure = true        # pen pressure varies the stroke width (Alt+P)
 - Fills are painted under strokes. With cairo, stroking consumed the path, so
   a shape with both lost its fill.
 - Pen pressure changes the stroke width, and a stylus' eraser end selects the
-  eraser automatically. Pressure strokes are saved as one SVG path per
-  segment, because SVG has no variable stroke width.
+  eraser automatically. A pressure stroke is one shape, so the eraser removes
+  it whole. It is saved as one SVG path per segment, because SVG has no
+  variable stroke width, numbered with `pizarra:pressure-segment` so that
+  loading joins the segments back into one stroke (pizarra-gtk loads them as
+  separate paths).
 - Saving writes to a temporary file and renames it, so a failed save never
   truncates the drawing.
 

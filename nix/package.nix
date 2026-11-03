@@ -46,7 +46,7 @@ rustPlatform.buildRustPackage {
     # zed-industries forks GPUI pulls in.
     outputHashes = {
       "gpui-0.2.2" = "sha256-ZyRdhu54D9wEwpiwwn3laNO76E4lysoZmPex3j9zqfU=";
-      "pizarra-3.0.1" = "sha256-Q9lEcQwn0/VHYSxqKM7Z9PEy1NAP6LL6ba4pXyHAJuc=";
+      "pizarra-3.0.1" = "sha256-MdwARIP+P31WF4HM6Ze+iK0//aBDP1qAZubJZBNTRbQ=";
       "zed-xim-0.4.0-zed" = "sha256-pRT4Sz1JU9ros47/7pmIW9kosWOGMOItcnNd+VrvnpE=";
       "zed-async-tar-0.5.0-zed" = "sha256-CpDHRg6+6u6GnhAVEtqupOsko/6/HDDDl2orCfa8vCY=";
       "zed-font-kit-0.14.1-zed" = "sha256-rxpumYP0QpHW+4e+J1qo5lEZXfBk1LaL/Y0APkUp9cg=";

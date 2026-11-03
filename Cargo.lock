@@ -3810,7 +3810,7 @@ dependencies = [
 [[package]]
 name = "pizarra"
 version = "3.0.1"
-source = "git+https://github.com/moeleak/pizarra?branch=main#860656c3d8d5ce4e30541aef4bbcbc98b62530a8"
+source = "git+https://github.com/moeleak/pizarra?branch=main#5c4a12c9c23930216854fa2bc153ccb46cac5d06"
 dependencies = [
  "lazy_static",
  "log",
