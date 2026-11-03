@@ -1,21 +1,20 @@
 {
   description = "Pizarra — a free-hand vector drawing application with an infinite canvas, rewritten on GPUI";
 
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  };
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   outputs =
     { self, nixpkgs }:
     let
       inherit (nixpkgs) lib;
 
-      # GPUI's Linux backend (Vulkan via blade, Wayland + X11) is what this
-      # flake builds and tests. macOS would need the Metal toolchain from
-      # Xcode, which a pure Nix build cannot provide.
+      # On macOS the Metal shaders are compiled at runtime, because the Metal
+      # compiler ships only with Xcode (see nix/package.nix).
       systems = [
         "x86_64-linux"
         "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
       ];
 
       forAllSystems = f: lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});

@@ -85,6 +85,14 @@ You need a recent stable Rust and the development packages for
 fontconfig, freetype, libxkbcommon, libxcb, libX11, Wayland and the Vulkan
 loader (e.g. on Debian/Ubuntu: `libfontconfig-dev libfreetype-dev
 libxkbcommon-x11-dev libxcb1-dev libx11-dev libwayland-dev libvulkan-dev`).
+On macOS without Xcode (only the Command Line Tools), add
+`--features gpui/runtime_shaders`: the Metal shader compiler ships with Xcode.
+
+Two dependencies come from forks, fetched by Cargo over git:
+[moeleak/pizarra](https://github.com/moeleak/pizarra) (the drawing engine,
+with pressure support) and the `gpui-v0.2.2-tablet` branch of
+[moeleak/zed](https://github.com/moeleak/zed/tree/gpui-v0.2.2-tablet)
+(GPUI 0.2.2 with tablet events).
 
 ```sh
 cargo run --release -- [drawing.svg]

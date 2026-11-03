@@ -16,10 +16,12 @@ path = "src/main.rs"
 
 [dependencies]
 # The drawing engine: shapes, tools, undo, transforms, SVG (de)serialization.
-pizarra = "3.0.1"
+# Fork with per-segment pressure widths.
+pizarra = { git = "https://github.com/moeleak/pizarra", branch = "main" }
 
-# UI
-gpui = "0.2.2"
+# UI. gpui 0.2.2 plus pointer type and pen pressure on mouse events
+# (XInput on X11, tablet-unstable-v2 on Wayland).
+gpui = { git = "https://github.com/moeleak/zed", branch = "gpui-v0.2.2-tablet" }
 # Same lyon gpui uses internally; needed for stroke caps/joins.
 lyon = "1.0"
 # Offscreen rasterizer used for PNG export (already in gpui's tree via resvg).
