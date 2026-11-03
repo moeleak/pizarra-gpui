@@ -7,7 +7,7 @@ See README.md for the architecture and CONTRIBUTING.md for the rules.
 
 - **Commits must use Conventional Commits** (`feat:`, `fix:`, `build(nix):`,
   ...). See CONTRIBUTING.md for the allowed types, scopes and format.
-- Keep user-facing texts in Spanish, matching pizarra-gtk.
+- Keep user-facing texts in English.
 - Before committing: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`,
   `cargo test`; for changes to Cargo.toml/Cargo.lock/nix files also `nix flake check`.
 

@@ -39,10 +39,11 @@ const THICKNESS_RANGE: (f64, f64, f64) = (2.0, 50.0, 2.0); // min, max, step
 const ALPHA_STEP: f64 = 0.1;
 
 // Messages of the GTK frontend, split into GPUI's message + detail.
-const UNSAVED_SINCE_LAST_TIME: (&str, &str) = ("Hiciste algunos trazos desde la última vez", "¿Los quieres guardar?");
-const UNSAVED_NEW_FILE: (&str, &str) = ("Hay algunos trazos aquí", "¿Los quieres guardar?");
-const CLOSE_NEW_FILE: (&str, &str) = ("Ya hiciste algunos dibujos", "¿Deseas guardar?");
-const CLOSE_SINCE_LAST_TIME: (&str, &str) = ("Hay cambios desde la última vez que guardaste", "¿Quieres guardarlos?");
+const UNSAVED_SINCE_LAST_TIME: (&str, &str) =
+    ("You have made some strokes since the last time", "Do you want to save them?");
+const UNSAVED_NEW_FILE: (&str, &str) = ("There are some strokes here", "Do you want to save them?");
+const CLOSE_NEW_FILE: (&str, &str) = ("You already made some drawings", "Do you want to save?");
+const CLOSE_SINCE_LAST_TIME: (&str, &str) = ("There are changes since you last saved", "Do you want to save them?");
 
 actions!(
     pizarra,
@@ -135,15 +136,15 @@ impl Tool {
 
     fn label(self) -> &'static str {
         match self {
-            Tool::Pen => "Lápiz",
-            Tool::Rectangle => "Rectángulo",
-            Tool::Polygon => "Polígono",
-            Tool::Circle => "Círculo por el centro y un punto",
-            Tool::CircleThreePoints => "Círculo por tres puntos",
-            Tool::Ellipse => "Elipse por los focos y un punto",
-            Tool::Grid => "Cuadrícula",
-            Tool::FreeGrid => "Cuadrícula libre",
-            Tool::Eraser => "Goma",
+            Tool::Pen => "Pen",
+            Tool::Rectangle => "Rectangle",
+            Tool::Polygon => "Polygon",
+            Tool::Circle => "Circle by center and a point",
+            Tool::CircleThreePoints => "Circle through three points",
+            Tool::Ellipse => "Ellipse by foci and a point",
+            Tool::Grid => "Grid",
+            Tool::FreeGrid => "Free grid",
+            Tool::Eraser => "Eraser",
         }
     }
 
@@ -372,7 +373,7 @@ impl PizarraWindow {
             .saved_path()
             .and_then(Path::file_stem)
             .map(|s| s.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "dibujo".into());
+            .unwrap_or_else(|| "drawing".into());
         if self.save_needs_dialog && extension == "svg" {
             format!("{stem}-pizarra.svg")
         } else {
@@ -385,7 +386,7 @@ impl PizarraWindow {
         let dir = |p: &Path| p.parent().map(|d| d.display().to_string());
         match self.controller.get_save_status() {
             SaveStatus::NewAndEmpty => ("Pizarra".into(), None),
-            SaveStatus::NewAndChanged => ("*Dibujo sin guardar".into(), None),
+            SaveStatus::NewAndChanged => ("*Unsaved drawing".into(), None),
             SaveStatus::Unsaved(path) => (format!("*{}", name(path)), dir(path)),
             SaveStatus::Saved(path) => (name(path), dir(path)),
         }
@@ -421,9 +422,9 @@ impl PizarraWindow {
         let svg = match fs::read_to_string(path) {
             Ok(svg) => svg,
             Err(err) if err.kind() == io::ErrorKind::NotFound => {
-                return Loaded::Failed("Ese archivo no existe :(", err.to_string());
+                return Loaded::Failed("That file does not exist :(", err.to_string());
             }
-            Err(err) => return Loaded::Failed("No pude leer los contenidos del archivo :(", err.to_string()),
+            Err(err) => return Loaded::Failed("Could not read the file contents :(", err.to_string()),
         };
 
         let (mut controller, warnings) = match Pizarra::from_svg(&svg, self.controller.config()) {
@@ -432,7 +433,7 @@ impl PizarraWindow {
                 (partial.read, partial.errors.iter().map(ToString::to_string).collect())
             }
             DeserializeResult::Err(err) => {
-                return Loaded::Failed("No pude interpretar el formato de este archivo :(", err.to_string());
+                return Loaded::Failed("Could not parse this file's format :(", err.to_string());
             }
         };
 
@@ -490,7 +491,7 @@ impl PizarraWindow {
         message: &str,
         detail: &str,
     ) -> Result<()> {
-        Self::ask(this, cx, PromptLevel::Critical, message, Some(detail), &["Chales"]).await?;
+        Self::ask(this, cx, PromptLevel::Critical, message, Some(detail), &["Close"]).await?;
         Ok(())
     }
 
@@ -506,8 +507,7 @@ impl PizarraWindow {
             (SaveStatus::Unsaved(_), Discard::Close) => CLOSE_SINCE_LAST_TIME,
         };
 
-        let answer =
-            Self::ask(this, cx, PromptLevel::Warning, message, Some(detail), &["Sí", "No", "Cancelar"]).await?;
+        let answer = Self::ask(this, cx, PromptLevel::Warning, message, Some(detail), &["Yes", "No", "Cancel"]).await?;
         match answer {
             Some(0) => Self::save_flow(this, cx, false).await,
             Some(1) => Ok(true),
@@ -532,7 +532,7 @@ impl PizarraWindow {
         match this.update(cx, |this, cx| this.write_svg(&path, cx))? {
             Ok(()) => Ok(true),
             Err(err) => {
-                Self::show_error(this, cx, "Falló esto:", &format!("{err:#}")).await?;
+                Self::show_error(this, cx, "This failed:", &format!("{err:#}")).await?;
                 Ok(false)
             }
         }
@@ -548,7 +548,7 @@ impl PizarraWindow {
         match receiver.await {
             Ok(Ok(path)) => Ok(path),
             Ok(Err(err)) => {
-                Self::show_error(this, cx, "No pude mostrar el selector de archivos", &format!("{err:#}")).await?;
+                Self::show_error(this, cx, "Could not show the file picker", &format!("{err:#}")).await?;
                 Ok(None)
             }
             Err(_) => Ok(None),
@@ -560,16 +560,16 @@ impl PizarraWindow {
             Loaded::Ok => Ok(()),
             Loaded::Partial(errors) => {
                 let mut detail = String::from(
-                    "Lo abrí, pero puede que algo no se vea igual. Al guardar te preguntaré dónde, para no \
-                     reemplazar el original.\n",
+                    "I opened it, but some things may not look the same. When saving I will ask you where, so the \
+                     original is not replaced.\n",
                 );
                 for err in errors.iter().take(5) {
                     detail.push_str(&format!("\n• {err}"));
                 }
                 if errors.len() > 5 {
-                    detail.push_str(&format!("\n… y {} más", errors.len() - 5));
+                    detail.push_str(&format!("\n… and {} more", errors.len() - 5));
                 }
-                Self::ask(this, cx, PromptLevel::Info, "Este archivo no fue hecho con pizarra", Some(&detail), &["Ok"])
+                Self::ask(this, cx, PromptLevel::Info, "This file was not made with pizarra", Some(&detail), &["Ok"])
                     .await?;
                 Ok(())
             }
@@ -609,14 +609,14 @@ impl PizarraWindow {
                     files: true,
                     directories: false,
                     multiple: false,
-                    prompt: Some("Abrir".into()),
+                    prompt: Some("Open".into()),
                 })
             })?;
 
             let path = match receiver.await {
                 Ok(Ok(paths)) => paths.and_then(|paths| paths.into_iter().next()),
                 Ok(Err(err)) => {
-                    Self::show_error(&this, cx, "No pude mostrar el selector de archivos", &format!("{err:#}")).await?;
+                    Self::show_error(&this, cx, "Could not show the file picker", &format!("{err:#}")).await?;
                     None
                 }
                 Err(_) => None,
@@ -650,7 +650,9 @@ impl PizarraWindow {
             let job = this.read_with(cx, |this, _| ExportJob::new(&this.controller))?;
             let job = match job {
                 Ok(job) => job,
-                Err(err) => return Self::show_error(&this, cx, "No hay nada que exportar", &format!("{err:#}")).await,
+                Err(err) => {
+                    return Self::show_error(&this, cx, "There is nothing to export", &format!("{err:#}")).await;
+                }
             };
 
             let (dir, name) = this.read_with(cx, |this, _| (this.dialog_dir(), this.suggested_name("png")))?;
@@ -668,7 +670,7 @@ impl PizarraWindow {
                     this.update(cx, |this, _| this.last_dir = path.parent().map(Path::to_path_buf))?;
                     Ok(())
                 }
-                Err(err) => Self::show_error(&this, cx, "No pude exportar el dibujo", &format!("{err:#}")).await,
+                Err(err) => Self::show_error(&this, cx, "Could not export the drawing", &format!("{err:#}")).await,
             }
         });
     }
@@ -946,18 +948,18 @@ impl PizarraWindow {
         let swatch = theme::to_hsla(self.color.with_alpha(alpha_u8(self.alpha)));
 
         let color_button = self
-            .popover_button(Popover::Color, "Color del trazo (Alt+C)", cx)
+            .popover_button(Popover::Color, "Stroke color (Alt+C)", cx)
             .child(div().size(px(20.)).rounded_full().border_1().border_color(theme::muted()).bg(swatch));
         let tool_button = self
-            .popover_button(Popover::Tools, "Cambia la herramienta de dibujo", cx)
+            .popover_button(Popover::Tools, "Change the drawing tool", cx)
             .child(icon(self.tool.icon(), theme::accent()));
         let thickness_button = self
-            .popover_button(Popover::Thickness, "Grosor del trazo", cx)
+            .popover_button(Popover::Thickness, "Stroke thickness", cx)
             .gap_1()
             .child(icon("icons/thickness.svg", theme::accent()))
             .child(div().text_xs().text_color(theme::muted()).child(format!("{}", self.thickness)));
         let alpha_button = self
-            .popover_button(Popover::Alpha, "Opacidad del trazo", cx)
+            .popover_button(Popover::Alpha, "Stroke opacity", cx)
             .gap_1()
             .child(icon("icons/alpha.svg", theme::accent()))
             .child(div().text_xs().text_color(theme::muted()).child(format!("{:.0}%", self.alpha * 100.0)));
@@ -992,27 +994,24 @@ impl PizarraWindow {
             .child(alpha_button)
             .child(separator())
             .child(
-                self.icon_button("undo", "icons/undo.svg", "Deshacer (Ctrl+Z)", cx, |this, w, cx| {
-                    this.undo(&Undo, w, cx)
-                }),
+                self.icon_button("undo", "icons/undo.svg", "Undo (Ctrl+Z)", cx, |this, w, cx| this.undo(&Undo, w, cx)),
             )
-            .child(self.icon_button("redo", "icons/redo.svg", "Rehacer (Ctrl+Shift+Z)", cx, |this, w, cx| {
+            .child(self.icon_button("redo", "icons/redo.svg", "Redo (Ctrl+Shift+Z)", cx, |this, w, cx| {
                 this.redo(&Redo, w, cx)
             }))
             .child(titles)
-            .child(self.icon_button("zoom-out", "icons/zoom_out.svg", "Alejar (-)", cx, |this, w, cx| {
+            .child(self.icon_button("zoom-out", "icons/zoom_out.svg", "Zoom out (-)", cx, |this, w, cx| {
                 this.zoom_out(&ZoomOut, w, cx)
             }))
-            .child(self.icon_button("zoom-home", "icons/zoom_home.svg", "Regresar al origen (0)", cx, |this, w, cx| {
+            .child(self.icon_button("zoom-home", "icons/zoom_home.svg", "Go back to origin (0)", cx, |this, w, cx| {
                 this.zoom_home(&ZoomHome, w, cx)
             }))
-            .child(self.icon_button("zoom-in", "icons/zoom_in.svg", "Acercar (+)", cx, |this, w, cx| {
+            .child(self.icon_button("zoom-in", "icons/zoom_in.svg", "Zoom in (+)", cx, |this, w, cx| {
                 this.zoom_in(&ZoomIn, w, cx)
             }))
             .child(separator())
             .child(
-                self.popover_button(Popover::Menu, "Opciones de la pizarra", cx)
-                    .child(icon("icons/menu.svg", theme::text())),
+                self.popover_button(Popover::Menu, "Pizarra options", cx).child(icon("icons/menu.svg", theme::text())),
             )
     }
 
@@ -1131,25 +1130,25 @@ impl PizarraWindow {
         type Item = (&'static str, &'static str, Handler);
         let sections: [(&str, &[Item]); 4] = [
             (
-                "Archivo",
+                "File",
                 &[
-                    ("Nuevo", "Ctrl+N", |t, w, cx| t.new_drawing(&NewDrawing, w, cx)),
-                    ("Abrir", "Ctrl+O", |t, w, cx| t.open(&Open, w, cx)),
-                    ("Guardar", "Ctrl+S", |t, w, cx| t.save(&Save, w, cx)),
-                    ("Guardar como", "Ctrl+Shift+S", |t, w, cx| t.save_as(&SaveAs, w, cx)),
-                    ("Exportar", "Ctrl+Shift+E", |t, w, cx| t.export(&Export, w, cx)),
-                    ("Salir", "Ctrl+Q", |t, w, cx| t.quit(&Quit, w, cx)),
+                    ("New", "Ctrl+N", |t, w, cx| t.new_drawing(&NewDrawing, w, cx)),
+                    ("Open", "Ctrl+O", |t, w, cx| t.open(&Open, w, cx)),
+                    ("Save", "Ctrl+S", |t, w, cx| t.save(&Save, w, cx)),
+                    ("Save as", "Ctrl+Shift+S", |t, w, cx| t.save_as(&SaveAs, w, cx)),
+                    ("Export", "Ctrl+Shift+E", |t, w, cx| t.export(&Export, w, cx)),
+                    ("Quit", "Ctrl+Q", |t, w, cx| t.quit(&Quit, w, cx)),
                 ],
             ),
             (
-                "Editar",
+                "Edit",
                 &[
-                    ("Deshacer", "Ctrl+Z", |t, w, cx| t.undo(&Undo, w, cx)),
-                    ("Rehacer", "Ctrl+Shift+Z", |t, w, cx| t.redo(&Redo, w, cx)),
+                    ("Undo", "Ctrl+Z", |t, w, cx| t.undo(&Undo, w, cx)),
+                    ("Redo", "Ctrl+Shift+Z", |t, w, cx| t.redo(&Redo, w, cx)),
                 ],
             ),
-            ("Ver", &[("Pantalla completa", "F11", |t, w, cx| t.toggle_fullscreen(&ToggleFullscreen, w, cx))]),
-            ("Ayuda", &[("Acerca de", "", |t, w, cx| t.about(&About, w, cx))]),
+            ("View", &[("Full screen", "F11", |t, w, cx| t.toggle_fullscreen(&ToggleFullscreen, w, cx))]),
+            ("Help", &[("About", "", |t, w, cx| t.about(&About, w, cx))]),
         ];
 
         div().w(px(250.)).flex().flex_col().children(sections.into_iter().enumerate().map(|(ix, (title, items))| {
@@ -1209,7 +1208,7 @@ impl PizarraWindow {
             .flex_col()
             .gap_2()
             .child(palette)
-            .child(div().mt_1().text_xs().text_color(theme::muted()).child("Personalizado"))
+            .child(div().mt_1().text_xs().text_color(theme::muted()).child("Custom"))
             .child(
                 div()
                     .flex()
@@ -1442,9 +1441,9 @@ impl PizarraWindow {
                             div()
                                 .text_sm()
                                 .text_color(theme::muted())
-                                .child(concat!("Versión ", env!("CARGO_PKG_VERSION"))),
+                                .child(concat!("Version ", env!("CARGO_PKG_VERSION"))),
                         )
-                        .child(div().mt_1().child("Como un pizarrón de gis, pero digital, vectorial e infinito."))
+                        .child(div().mt_1().child("Like a chalkboard, but digital, vectorial and infinite."))
                         .child(
                             div()
                                 .id("website")
@@ -1462,9 +1461,9 @@ impl PizarraWindow {
                                 .flex_col()
                                 .items_center()
                                 .child(line("Copyright 2022 Abraham Toriz"))
-                                .child(line("Contribuciones de Federico Mena, @tyoc213"))
-                                .child(line("Interfaz GPUI basada en pizarra-gtk"))
-                                .child(line("Licencia GPL 3.0 o posterior")),
+                                .child(line("Contributions by Federico Mena, @tyoc213"))
+                                .child(line("GPUI interface based on pizarra-gtk"))
+                                .child(line("GPL 3.0 or later license")),
                         )
                         .child(
                             button_base("about-close")
@@ -1475,7 +1474,7 @@ impl PizarraWindow {
                                     this.show_about = false;
                                     cx.notify();
                                 }))
-                                .child("Cerrar"),
+                                .child("Close"),
                         ),
                 ),
         )

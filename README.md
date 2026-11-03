@@ -9,7 +9,7 @@ This is a port of [pizarra-gtk](https://gitlab.com/categulario/pizarra-gtk)
 tools, undo, transforms and the SVG file format) lives in the
 [`pizarra`](https://codeberg.org/categulario/pizarra) engine crate; this
 repository is the frontend: a GPUI window, toolbar, canvas renderer and the
-file dialogs. The interface keeps the original's Spanish texts and shortcuts.
+file dialogs. The interface is in English and keeps the original's shortcuts.
 
 ![Pizarra running on GPUI](docs/screenshot.png)
 
@@ -51,7 +51,7 @@ The flake builds for `x86_64-linux` and `aarch64-linux`:
 
 ```sh
 nix run github:moeleak/pizarra-gpui            # run it
-nix run github:moeleak/pizarra-gpui -- dibujo.svg
+nix run github:moeleak/pizarra-gpui -- drawing.svg
 nix build                                       # ./result/bin/pizarra-gpui
 nix develop                                     # cargo, rustc, clippy, rust-analyzer
 nix flake check
@@ -87,7 +87,7 @@ loader (e.g. on Debian/Ubuntu: `libfontconfig-dev libfreetype-dev
 libxkbcommon-x11-dev libxcb1-dev libx11-dev libwayland-dev libvulkan-dev`).
 
 ```sh
-cargo run --release -- [dibujo.svg]
+cargo run --release -- [drawing.svg]
 cargo test
 ```
 

@@ -26,7 +26,7 @@ pub struct ExportJob {
 impl ExportJob {
     pub fn new(controller: &Pizarra) -> Result<Self> {
         let Some([a, b]) = controller.get_bounds() else {
-            bail!("el dibujo está vacío");
+            bail!("the drawing is empty");
         };
 
         let padding = controller.config().export_padding.val();
@@ -35,7 +35,7 @@ impl ExportJob {
         let (width, height) = ((max_x - min_x).ceil(), (max_y - min_y).ceil());
 
         if !(width.is_finite() && height.is_finite()) || width > MAX_SIDE || height > MAX_SIDE {
-            bail!("el dibujo es demasiado grande para exportarlo ({width}×{height} px)");
+            bail!("the drawing is too large to export ({width}×{height} px)");
         }
 
         let world = Affine::translation(-min_x, -min_y);
