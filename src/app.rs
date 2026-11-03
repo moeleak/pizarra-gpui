@@ -190,6 +190,14 @@ impl Tool {
     }
 }
 
+fn install_tool(controller: &mut Pizarra, tool: Tool) {
+    // An unfinished shape keeps its builder when the selected tool changes, so
+    // the new tool would keep building the old shape (for example a polygon
+    // curve when switching back to the pen). Cancel it first.
+    controller.handle_key_released(Key::Escape);
+    controller.set_tool(tool.selected());
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Popover {
     Color,
@@ -239,6 +247,9 @@ pub struct PizarraWindow {
     /// canvas keeps receiving moves and releases outside its bounds, like a GTK
     /// implicit grab.
     held_buttons: Vec<MouseButton>,
+    /// Last canvas position seen while a button was down, used to finish the
+    /// gesture when the tool changes from the keyboard.
+    last_pointer: Option<Vec2D<ScreenUnit>>,
 
     // What the header bar shows; re-applied to the controller when it is
     // replaced (new drawing, open).
@@ -289,6 +300,7 @@ impl PizarraWindow {
             shapes: ShapeLayer::default(),
             canvas_bounds: None,
             held_buttons: Vec::new(),
+            last_pointer: None,
             tool: Tool::Pen,
             color: config.stroke_color.with_alpha(255),
             alpha,
@@ -737,10 +749,26 @@ impl PizarraWindow {
     }
 
     fn set_tool(&mut self, tool: Tool, cx: &mut Context<Self>) {
-        self.tool = tool;
-        self.controller.set_tool(tool.selected());
+        if self.tool != tool {
+            self.finish_pointer_gesture();
+            install_tool(&mut self.controller, tool);
+            self.tool = tool;
+            self.shapes.invalidate();
+        }
         self.popover = None;
         cx.notify();
+    }
+
+    /// Ends a gesture still in progress before the tool changes, so an eraser
+    /// drag is committed and a pen stroke is not mixed with the next tool.
+    fn finish_pointer_gesture(&mut self) {
+        let Some(at) = self.last_pointer else { return };
+        for button in std::mem::take(&mut self.held_buttons) {
+            if let Some(button) = to_pizarra_button(button) {
+                self.controller.handle_mouse_button_released_flags(button, at, Flags::default(), None);
+            }
+        }
+        self.shapes.invalidate();
     }
 
     fn set_color(&mut self, color: Color, cx: &mut Context<Self>) {
@@ -788,7 +816,9 @@ impl PizarraWindow {
         if !self.held_buttons.contains(&event.button) {
             self.held_buttons.push(event.button);
         }
-        let hint = self.controller.handle_mouse_button_pressed_flags(button, self.to_canvas(event.position), None);
+        let at = self.to_canvas(event.position);
+        self.last_pointer = Some(at);
+        let hint = self.controller.handle_mouse_button_pressed_flags(button, at, None);
         self.redraw(hint, cx);
     }
 
@@ -797,20 +827,21 @@ impl PizarraWindow {
             return;
         }
 
+        let at = self.to_canvas(event.position);
+        self.last_pointer = Some(at);
+
         // A release that happened where we could not see it (e.g. outside the
         // window): finish the gesture instead of leaving the tool stuck.
         if event.pressed_button.is_none() && !self.held_buttons.is_empty() {
             for button in std::mem::take(&mut self.held_buttons) {
                 if let Some(button) = to_pizarra_button(button) {
-                    let at = self.to_canvas(event.position);
                     self.controller.handle_mouse_button_released_flags(button, at, flags(&event.modifiers), None);
                 }
             }
             self.shapes.invalidate();
         }
 
-        let hint =
-            self.controller.handle_mouse_move_flags(self.to_canvas(event.position), flags(&event.modifiers), None);
+        let hint = self.controller.handle_mouse_move_flags(at, flags(&event.modifiers), None);
         self.redraw(hint, cx);
     }
 
@@ -818,12 +849,9 @@ impl PizarraWindow {
         let Some(ix) = self.held_buttons.iter().position(|b| *b == event.button) else { return };
         self.held_buttons.remove(ix);
         let Some(button) = to_pizarra_button(event.button) else { return };
-        self.controller.handle_mouse_button_released_flags(
-            button,
-            self.to_canvas(event.position),
-            flags(&event.modifiers),
-            None,
-        );
+        let at = self.to_canvas(event.position);
+        self.last_pointer = Some(at);
+        self.controller.handle_mouse_button_released_flags(button, at, flags(&event.modifiers), None);
         // A finished shape moves from the live layer to the stored one.
         self.invalidate(cx);
     }
@@ -1586,4 +1614,29 @@ impl Render for Tooltip {
 
 fn tooltip(text: &'static str) -> impl Fn(&mut Window, &mut App) -> AnyView + 'static {
     move |_, cx| cx.new(|_| Tooltip(text.into())).into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pizarra::config::Config;
+
+    #[test]
+    fn switching_tools_abandons_an_unfinished_shape() {
+        let mut controller = Pizarra::new(Vec2D::new_screen(400.0, 300.0), Config::default());
+
+        // Start a polygon without finishing it, then go back to the pen.
+        install_tool(&mut controller, Tool::Polygon);
+        controller.handle_mouse_button_pressed(pizarra::app::MouseButton::Left, Vec2D::new_screen(100.0, 100.0));
+        controller.handle_mouse_button_released(pizarra::app::MouseButton::Left, Vec2D::new_screen(150.0, 120.0));
+        controller.handle_mouse_move(Vec2D::new_screen(180.0, 160.0));
+
+        install_tool(&mut controller, Tool::Pen);
+        controller.handle_mouse_button_pressed(pizarra::app::MouseButton::Left, Vec2D::new_screen(200.0, 200.0));
+        controller.handle_mouse_move(Vec2D::new_screen(240.0, 220.0));
+        controller.handle_mouse_button_released(pizarra::app::MouseButton::Left, Vec2D::new_screen(280.0, 240.0));
+
+        // The pen stroke finished, so no shape is left being built.
+        assert!(controller.draw_commands_for_current_shape().is_none());
+    }
 }
