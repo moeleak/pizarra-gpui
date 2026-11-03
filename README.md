@@ -69,15 +69,19 @@ driver.
 
 ### Graphics tablets
 
-GPUI has no native Wayland tablet support, and KWin 6.3+ and Mutter no longer
-emulate a pen as a mouse pointer. A stylus therefore cannot draw when the
-window talks Wayland directly. Pizarra starts on the X11 backend (XWayland on
-Wayland sessions) whenever `DISPLAY` is available, because XWayland exposes
-tablets as normal XInput devices and the pen, including the crosshair cursor,
-works there.
+Graphics tablets are supported natively: pen pressure modulates the stroke
+width, and the eraser end of the stylus temporarily switches to the eraser
+tool. This works both through XInput on X11/XWayland and through the
+`tablet-unstable-v2` Wayland protocol. A mouse or trackpad always draws at the
+configured width.
 
-Set `PIZARRA_BACKEND=wayland` to use native Wayland without pen support, or
-`PIZARRA_BACKEND=x11` to force the X11 backend explicitly.
+Pizarra prefers native Wayland when the session provides a
+`zwp_tablet_manager_v2`. Set `PIZARRA_BACKEND=x11` to force the X11 backend
+(XWayland on a Wayland session), or `PIZARRA_BACKEND=wayland` to force native
+Wayland. On Wayland the lower stylus button pans the canvas, like the middle
+mouse button.
+
+On macOS a pen draws like a mouse, without pressure.
 
 ## Building without Nix
 
@@ -128,8 +132,9 @@ scroll_factor = -5.0       # pixels per wheel notch (sign = direction)
 - Undo/redo buttons in the header bar; *Full screen* (`F11`) now works.
 - Fills are painted under strokes. With cairo, stroking consumed the path, so
   a shape with both lost its fill.
-- GPUI does not report pen tool types, so a stylus' eraser end doesn't switch
-  to the eraser automatically. Pick the eraser with `G`.
+- Pen pressure changes the stroke width, and a stylus' eraser end selects the
+  eraser automatically. Pressure strokes are saved as one SVG path per
+  segment, because SVG has no variable stroke width.
 - Saving writes to a temporary file and renames it, so a failed save never
   truncates the drawing.
 

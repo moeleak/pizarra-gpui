@@ -12,8 +12,8 @@ use anyhow::Result;
 use gpui::{
     AnyView, App, AsyncWindowContext, Bounds, ContentMask, Context, Corner, CursorStyle, DispatchPhase, ElementId,
     FocusHandle, FontWeight, HitboxBehavior, KeyBinding, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, PathPromptOptions, Pixels, Point, PromptLevel, Render, ScrollDelta, ScrollWheelEvent, SharedString,
-    WeakEntity, Window, actions, anchored, canvas, deferred, div, fill, img, point, prelude::*, px, svg,
+    MouseUpEvent, PathPromptOptions, Pixels, Point, PointerType, PromptLevel, Render, ScrollDelta, ScrollWheelEvent,
+    SharedString, WeakEntity, Window, actions, anchored, canvas, deferred, div, fill, img, point, prelude::*, px, svg,
 };
 use pizarra::{
     app::{Pizarra, SaveStatus, SelectedTool, ShouldRedraw},
@@ -251,6 +251,8 @@ pub struct PizarraWindow {
     /// Last canvas position seen while a button was down, used to finish the
     /// gesture when the tool changes from the keyboard.
     last_pointer: Option<Vec2D<ScreenUnit>>,
+    /// Last pressure reported by a pen, so ending a gesture still knows it.
+    last_pressure: f64,
 
     // What the header bar shows; re-applied to the controller when it is
     // replaced (new drawing, open).
@@ -302,6 +304,7 @@ impl PizarraWindow {
             canvas_bounds: None,
             held_buttons: Vec::new(),
             last_pointer: None,
+            last_pressure: 1.0,
             tool: Tool::Pen,
             color: config.stroke_color.with_alpha(255),
             alpha,
@@ -767,10 +770,27 @@ impl PizarraWindow {
         let Some(at) = self.last_pointer else { return };
         for button in std::mem::take(&mut self.held_buttons) {
             if let Some(button) = to_pizarra_button(button) {
-                self.controller.handle_mouse_button_released_flags(button, at, Flags::default(), None);
+                self.controller.handle_mouse_button_released_pressure(
+                    button,
+                    at,
+                    self.last_pressure,
+                    Flags::default(),
+                    None,
+                );
             }
         }
         self.shapes.invalidate();
+    }
+
+    /// A stylus' eraser end temporarily overrides the selected tool.
+    fn tool_override(&self, pointer_type: PointerType) -> Option<SelectedTool> {
+        (pointer_type == PointerType::PenEraser).then_some(SelectedTool::Eraser)
+    }
+
+    fn pressure(&mut self, pressure: Option<f32>) -> f64 {
+        self.last_pressure = pressure.map_or(1.0, f64::from).clamp(0.0, 1.0);
+        log::trace!("pen pressure: {:?}", pressure);
+        self.last_pressure
     }
 
     fn set_color(&mut self, color: Color, cx: &mut Context<Self>) {
@@ -820,7 +840,13 @@ impl PizarraWindow {
         }
         let at = self.to_canvas(event.position);
         self.last_pointer = Some(at);
-        let hint = self.controller.handle_mouse_button_pressed_flags(button, at, None);
+        let pressure = self.pressure(event.pressure);
+        let hint = self.controller.handle_mouse_button_pressed_pressure(
+            button,
+            at,
+            pressure,
+            self.tool_override(event.pointer_type),
+        );
         self.redraw(hint, cx);
     }
 
@@ -831,19 +857,27 @@ impl PizarraWindow {
 
         let at = self.to_canvas(event.position);
         self.last_pointer = Some(at);
+        let pressure = self.pressure(event.pressure);
+        let tool_override = self.tool_override(event.pointer_type);
 
         // A release that happened where we could not see it (e.g. outside the
         // window): finish the gesture instead of leaving the tool stuck.
         if event.pressed_button.is_none() && !self.held_buttons.is_empty() {
             for button in std::mem::take(&mut self.held_buttons) {
                 if let Some(button) = to_pizarra_button(button) {
-                    self.controller.handle_mouse_button_released_flags(button, at, flags(&event.modifiers), None);
+                    self.controller.handle_mouse_button_released_pressure(
+                        button,
+                        at,
+                        pressure,
+                        flags(&event.modifiers),
+                        tool_override,
+                    );
                 }
             }
             self.shapes.invalidate();
         }
 
-        let hint = self.controller.handle_mouse_move_flags(at, flags(&event.modifiers), None);
+        let hint = self.controller.handle_mouse_move_pressure(at, pressure, flags(&event.modifiers), tool_override);
         self.redraw(hint, cx);
     }
 
@@ -853,7 +887,14 @@ impl PizarraWindow {
         let Some(button) = to_pizarra_button(event.button) else { return };
         let at = self.to_canvas(event.position);
         self.last_pointer = Some(at);
-        self.controller.handle_mouse_button_released_flags(button, at, flags(&event.modifiers), None);
+        let pressure = self.pressure(event.pressure);
+        self.controller.handle_mouse_button_released_pressure(
+            button,
+            at,
+            pressure,
+            flags(&event.modifiers),
+            self.tool_override(event.pointer_type),
+        );
         // A finished shape moves from the live layer to the stored one.
         self.invalidate(cx);
     }
