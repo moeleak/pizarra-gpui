@@ -75,6 +75,10 @@ tool. This works both through XInput on X11/XWayland and through the
 `tablet-unstable-v2` Wayland protocol. A mouse or trackpad always draws at the
 configured width.
 
+The pressure button in the header bar (or `Alt+P`) turns pressure off, so the
+pen also draws at the configured width; `pen_pressure` in the configuration
+sets how the app starts.
+
 Pizarra prefers native Wayland when the session provides a
 `zwp_tablet_manager_v2`. Set `PIZARRA_BACKEND=x11` to force the X11 backend
 (XWayland on a Wayland session), or `PIZARRA_BACKEND=wayland` to force native
@@ -121,7 +125,10 @@ zoom_factor = 2.0
 background_color = "#303633FF"  # chalkboard
 stroke_color = "#FFFFFFFF"
 scroll_factor = -5.0       # pixels per wheel notch (sign = direction)
+pen_pressure = true        # pen pressure varies the stroke width (Alt+P)
 ```
+
+`pen_pressure` is read only by this frontend; pizarra-gtk ignores it.
 
 ## Differences from pizarra-gtk
 

@@ -25,7 +25,8 @@ Usage: pizarra-gpui [FILE.svg]
 
 Shortcuts: Ctrl+N new, Ctrl+O open, Ctrl+S save, Ctrl+Shift+S save as,
 Ctrl+Shift+E export to PNG, Ctrl+Z / Ctrl+Shift+Z undo / redo,
-L R P C K E Q Alt+Q G tools, Alt+C color, + - 0 zoom, F11 full screen.
+L R P C K E Q Alt+Q G tools, Alt+C color, Alt+P pen pressure on/off,
++ - 0 zoom, F11 full screen.
 
 Configuration: $PIZARRA_CONFIG or ~/.config/pizarra/config.toml
 

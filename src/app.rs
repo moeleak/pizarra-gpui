@@ -71,6 +71,7 @@ actions!(
         ToolFreeGrid,
         ToolEraser,
         ChooseColor,
+        TogglePenPressure,
         Cancel,
     ]
 );
@@ -98,6 +99,7 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("alt-q", ToolFreeGrid, ctx),
         KeyBinding::new("g", ToolEraser, ctx),
         KeyBinding::new("alt-c", ChooseColor, ctx),
+        KeyBinding::new("alt-p", TogglePenPressure, ctx),
         KeyBinding::new("+", ZoomIn, ctx),
         KeyBinding::new("shift-+", ZoomIn, ctx),
         KeyBinding::new("=", ZoomIn, ctx),
@@ -260,6 +262,9 @@ pub struct PizarraWindow {
     color: Color,
     alpha: f64,
     thickness: f64,
+    /// Whether pen pressure varies the stroke width. When off, pens draw at
+    /// the configured width, like a mouse.
+    pen_pressure: bool,
 
     popover: Option<Popover>,
     anchors: Rc<[Cell<Option<Bounds<Pixels>>>; Popover::COUNT]>,
@@ -279,7 +284,7 @@ pub struct PizarraWindow {
 
 impl PizarraWindow {
     pub fn new(file: Option<PathBuf>, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let config = config::read();
+        let config::Settings { config, pen_pressure } = config::read();
         let controller = Pizarra::new(Vec2D::new_screen(1.0, 1.0), config);
         let focus_handle = cx.focus_handle();
         window.focus(&focus_handle);
@@ -309,6 +314,7 @@ impl PizarraWindow {
             color: config.stroke_color.with_alpha(255),
             alpha,
             thickness,
+            pen_pressure,
             popover: None,
             anchors: Rc::new(Default::default()),
             dragging: None,
@@ -788,9 +794,14 @@ impl PizarraWindow {
     }
 
     fn pressure(&mut self, pressure: Option<f32>) -> f64 {
-        self.last_pressure = pressure.map_or(1.0, f64::from).clamp(0.0, 1.0);
         log::trace!("pen pressure: {:?}", pressure);
+        self.last_pressure = stroke_pressure(self.pen_pressure, pressure);
         self.last_pressure
+    }
+
+    fn toggle_pen_pressure(&mut self, _: &TogglePenPressure, _: &mut Window, cx: &mut Context<Self>) {
+        self.pen_pressure = !self.pen_pressure;
+        cx.notify();
     }
 
     fn set_color(&mut self, color: Color, cx: &mut Context<Self>) {
@@ -1004,6 +1015,15 @@ impl PizarraWindow {
             .gap_1()
             .child(icon("icons/alpha.svg", theme::accent()))
             .child(div().text_xs().text_color(theme::muted()).child(format!("{:.0}%", self.alpha * 100.0)));
+        let pressure_button = button_base("pen-pressure")
+            .when(self.pen_pressure, |b| b.bg(theme::pressed()))
+            .tooltip(tooltip(if self.pen_pressure {
+                "Pen pressure is on (Alt+P)"
+            } else {
+                "Pen pressure is off (Alt+P)"
+            }))
+            .on_click(cx.listener(|this, _, window, cx| this.toggle_pen_pressure(&TogglePenPressure, window, cx)))
+            .child(icon("icons/pressure.svg", if self.pen_pressure { theme::accent() } else { theme::muted() }));
 
         let titles = div()
             .flex_1()
@@ -1033,6 +1053,7 @@ impl PizarraWindow {
             .child(tool_button)
             .child(thickness_button)
             .child(alpha_button)
+            .child(pressure_button)
             .child(separator())
             .child(
                 self.icon_button("undo", "icons/undo.svg", "Undo (Ctrl+Z)", cx, |this, w, cx| this.undo(&Undo, w, cx)),
@@ -1550,6 +1571,7 @@ impl Render for PizarraWindow {
             .on_action(cx.listener(Self::zoom_out))
             .on_action(cx.listener(Self::zoom_home))
             .on_action(cx.listener(Self::choose_color))
+            .on_action(cx.listener(Self::toggle_pen_pressure))
             .on_action(cx.listener(Self::cancel))
             .on_action(cx.listener(|this, _: &ToolPen, _, cx| this.set_tool(Tool::Pen, cx)))
             .on_action(cx.listener(|this, _: &ToolRectangle, _, cx| this.set_tool(Tool::Rectangle, cx)))
@@ -1592,6 +1614,12 @@ fn to_pizarra_button(button: MouseButton) -> Option<pizarra::app::MouseButton> {
 
 fn flags(modifiers: &Modifiers) -> Flags {
     Flags { shift: modifiers.shift, ctrl: modifiers.control, alt: modifiers.alt }
+}
+
+/// The pressure a stroke uses: the pen's when pressure is enabled and the device
+/// reports one, otherwise full pressure (the configured width).
+fn stroke_pressure(enabled: bool, reported: Option<f32>) -> f64 {
+    reported.filter(|_| enabled).map_or(1.0, f64::from).clamp(0.0, 1.0)
 }
 
 fn icon(path: &'static str, color: gpui::Rgba) -> impl IntoElement {
@@ -1678,5 +1706,13 @@ mod tests {
 
         // The pen stroke finished, so no shape is left being built.
         assert!(controller.draw_commands_for_current_shape().is_none());
+    }
+
+    #[test]
+    fn disabled_pen_pressure_draws_at_full_width() {
+        assert_eq!(stroke_pressure(true, Some(0.25)), 0.25);
+        assert_eq!(stroke_pressure(false, Some(0.25)), 1.0);
+        assert_eq!(stroke_pressure(true, None), 1.0);
+        assert_eq!(stroke_pressure(true, Some(1.5)), 1.0);
     }
 }

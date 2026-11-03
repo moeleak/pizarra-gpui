@@ -23,6 +23,7 @@ static ASSETS: &[(&str, &[u8])] = embed![
     "icons/line.svg",
     "icons/menu.svg",
     "icons/polygon.svg",
+    "icons/pressure.svg",
     "icons/rectangle.svg",
     "icons/redo.svg",
     "icons/thickness.svg",
