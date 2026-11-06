@@ -934,7 +934,7 @@ dependencies = [
 [[package]]
 name = "collections"
 version = "0.1.0"
-source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#ef799d306433e9b633a1615b1bbfda024b32fa8b"
+source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#0c68994232e91e2725eef75b3306c10517edef7a"
 dependencies = [
  "indexmap 2.11.4",
  "rustc-hash 2.1.1",
@@ -1329,7 +1329,7 @@ dependencies = [
 [[package]]
 name = "derive_refineable"
 version = "0.1.0"
-source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#ef799d306433e9b633a1615b1bbfda024b32fa8b"
+source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#0c68994232e91e2725eef75b3306c10517edef7a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2155,7 +2155,7 @@ dependencies = [
 [[package]]
 name = "gpui"
 version = "0.2.2"
-source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#ef799d306433e9b633a1615b1bbfda024b32fa8b"
+source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#0c68994232e91e2725eef75b3306c10517edef7a"
 dependencies = [
  "anyhow",
  "as-raw-xcb-connection",
@@ -2250,7 +2250,7 @@ dependencies = [
 [[package]]
 name = "gpui_macros"
 version = "0.1.0"
-source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#ef799d306433e9b633a1615b1bbfda024b32fa8b"
+source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#0c68994232e91e2725eef75b3306c10517edef7a"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -2440,7 +2440,7 @@ dependencies = [
 [[package]]
 name = "http_client"
 version = "0.1.0"
-source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#ef799d306433e9b633a1615b1bbfda024b32fa8b"
+source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#0c68994232e91e2725eef75b3306c10517edef7a"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -3146,7 +3146,7 @@ dependencies = [
 [[package]]
 name = "media"
 version = "0.1.0"
-source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#ef799d306433e9b633a1615b1bbfda024b32fa8b"
+source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#0c68994232e91e2725eef75b3306c10517edef7a"
 dependencies = [
  "anyhow",
  "bindgen",
@@ -3751,7 +3751,7 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 [[package]]
 name = "perf"
 version = "0.1.0"
-source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#ef799d306433e9b633a1615b1bbfda024b32fa8b"
+source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#0c68994232e91e2725eef75b3306c10517edef7a"
 dependencies = [
  "collections",
  "serde",
@@ -4362,7 +4362,7 @@ dependencies = [
 [[package]]
 name = "refineable"
 version = "0.1.0"
-source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#ef799d306433e9b633a1615b1bbfda024b32fa8b"
+source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#0c68994232e91e2725eef75b3306c10517edef7a"
 dependencies = [
  "derive_refineable",
 ]
@@ -4764,7 +4764,7 @@ checksum = "0f7d95a54511e0c7be3f51e8867aa8cf35148d7b9445d44de2f943e2b206e749"
 [[package]]
 name = "semantic_version"
 version = "0.1.0"
-source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#ef799d306433e9b633a1615b1bbfda024b32fa8b"
+source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#0c68994232e91e2725eef75b3306c10517edef7a"
 dependencies = [
  "anyhow",
  "serde",
@@ -5184,7 +5184,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sum_tree"
 version = "0.1.0"
-source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#ef799d306433e9b633a1615b1bbfda024b32fa8b"
+source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#0c68994232e91e2725eef75b3306c10517edef7a"
 dependencies = [
  "arrayvec",
  "log",
@@ -6001,7 +6001,7 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 [[package]]
 name = "util"
 version = "0.1.0"
-source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#ef799d306433e9b633a1615b1bbfda024b32fa8b"
+source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#0c68994232e91e2725eef75b3306c10517edef7a"
 dependencies = [
  "anyhow",
  "async-fs",
@@ -6036,7 +6036,7 @@ dependencies = [
 [[package]]
 name = "util_macros"
 version = "0.1.0"
-source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#ef799d306433e9b633a1615b1bbfda024b32fa8b"
+source = "git+https://github.com/moeleak/zed?branch=gpui-v0.2.2-tablet#0c68994232e91e2725eef75b3306c10517edef7a"
 dependencies = [
  "perf",
  "quote",

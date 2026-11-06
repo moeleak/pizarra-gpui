@@ -20,7 +20,7 @@ path = "src/main.rs"
 pizarra = { git = "https://github.com/moeleak/pizarra", branch = "main" }
 
 # UI. gpui 0.2.2 plus pointer type and pen pressure on mouse events
-# (XInput on X11, tablet-unstable-v2 on Wayland).
+# (XInput on X11, tablet-unstable-v2 on Wayland, tablet events on macOS).
 gpui = { git = "https://github.com/moeleak/zed", branch = "gpui-v0.2.2-tablet" }
 # Same lyon gpui uses internally; needed for stroke caps/joins.
 lyon = "1.0"

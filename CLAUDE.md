@@ -26,8 +26,9 @@ See README.md for the architecture and CONTRIBUTING.md for the rules.
   the `*_pressure` input methods. Keep the old pointer methods working for
   callers that have no pressure.
 - `moeleak/zed` (`gpui-v0.2.2-tablet`) — GPUI 0.2.2 with `PointerType` and
-  `pressure` on mouse events, fed by XInput on X11 and `tablet-unstable-v2`
-  on Wayland; macOS and Windows report mouse events without pressure.
+  `pressure` on mouse events, fed by XInput on X11, `tablet-unstable-v2` on
+  Wayland and the tablet subtype of AppKit mouse events on macOS; Windows
+  reports mouse events without pressure.
 
 To pick up a change, push it to the fork, then `cargo update -p pizarra` or
 `cargo update -p gpui` (never a blanket update) and refresh the matching

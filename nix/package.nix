@@ -45,7 +45,7 @@ rustPlatform.buildRustPackage {
     # One hash per git revision: the engine and GPUI forks, and the
     # zed-industries forks GPUI pulls in.
     outputHashes = {
-      "gpui-0.2.2" = "sha256-ZyRdhu54D9wEwpiwwn3laNO76E4lysoZmPex3j9zqfU=";
+      "gpui-0.2.2" = "sha256-/ZfcnAzg0anYbMJP9sd9D0HUgO/gMTf+AISIqlEu78U=";
       "pizarra-3.0.1" = "sha256-MdwARIP+P31WF4HM6Ze+iK0//aBDP1qAZubJZBNTRbQ=";
       "zed-xim-0.4.0-zed" = "sha256-pRT4Sz1JU9ros47/7pmIW9kosWOGMOItcnNd+VrvnpE=";
       "zed-async-tar-0.5.0-zed" = "sha256-CpDHRg6+6u6GnhAVEtqupOsko/6/HDDDl2orCfa8vCY=";

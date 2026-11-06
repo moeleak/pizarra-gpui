@@ -71,9 +71,10 @@ driver.
 
 Graphics tablets are supported natively: pen pressure modulates the stroke
 width, and the eraser end of the stylus temporarily switches to the eraser
-tool. This works both through XInput on X11/XWayland and through the
-`tablet-unstable-v2` Wayland protocol. A mouse or trackpad always draws at the
-configured width.
+tool. This works through XInput on X11/XWayland, through the
+`tablet-unstable-v2` Wayland protocol and through the tablet data of AppKit
+mouse events on macOS. A mouse or trackpad always draws at the configured
+width.
 
 The pressure button in the header bar (or `Alt+P`) turns pressure off, so the
 pen also draws at the configured width; `pen_pressure` in the configuration
@@ -85,7 +86,8 @@ Pizarra prefers native Wayland when the session provides a
 Wayland. On Wayland the lower stylus button pans the canvas, like the middle
 mouse button.
 
-On macOS a pen draws like a mouse, without pressure.
+On macOS the stylus buttons do whatever the tablet driver maps them to. A
+tablet needs its vendor's driver installed for macOS to report pressure.
 
 ## Building without Nix
 
