@@ -4,7 +4,8 @@
 //! world coordinates (finished shapes) and some in screen coordinates (visual
 //! helpers such as snapping circles). This module flattens those commands into
 //! [`Primitive`]s whose segments are already in the target pixel space, so the
-//! same code feeds both the GPUI canvas and the PNG exporter.
+//! same code feeds both the GPUI canvas and the PNG exporter. The canvas then
+//! joins the pieces of pressure strokes with [`join_pen_strokes`].
 
 use pizarra::{
     color::Color,
@@ -93,15 +94,95 @@ impl Primitive {
     /// curve always lies inside the hull of its control points), grown by half
     /// the stroke width.
     pub fn bounds(&self) -> Option<(Pt, Pt)> {
-        let mut points = self.segments.iter().flat_map(Seg::points);
-        let first = points.next()?;
-        let (mut min, mut max) = (first, first);
-        for p in points {
-            min = Pt::new(min.x.min(p.x), min.y.min(p.y));
-            max = Pt::new(max.x.max(p.x), max.y.max(p.y));
+        padded_bounds(&self.segments, self.stroke.map_or(0.0, |s| s.width / 2.0))
+    }
+}
+
+fn padded_bounds(segments: &[Seg], pad: f64) -> Option<(Pt, Pt)> {
+    let mut points = segments.iter().flat_map(Seg::points);
+    let first = points.next()?;
+    let (mut min, mut max) = (first, first);
+    for p in points {
+        min = Pt::new(min.x.min(p.x), min.y.min(p.y));
+        max = Pt::new(max.x.max(p.x), max.y.max(p.y));
+    }
+    Some((Pt::new(min.x - pad, min.y - pad), Pt::new(max.x + pad, max.y + pad)))
+}
+
+/// A stroke whose width changes along its length.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PenStroke {
+    /// A `MoveTo` followed by lines and curves.
+    pub segments: Vec<Seg>,
+    /// Width of the stroke at the end of each of `segments`.
+    pub widths: Vec<f64>,
+    pub color: Color,
+}
+
+impl PenStroke {
+    fn start(from: Pt, start_width: f64, seg: Seg, width: f64, color: Color) -> Self {
+        Self { segments: vec![Seg::MoveTo(from), seg], widths: vec![start_width, width], color }
+    }
+
+    fn continues_at(&self, from: Pt, color: Color) -> bool {
+        self.color == color && self.segments.last().and_then(Seg::end) == Some(from)
+    }
+
+    fn bounds(&self) -> Option<(Pt, Pt)> {
+        padded_bounds(&self.segments, self.widths.iter().copied().fold(0.0, f64::max) / 2.0)
+    }
+}
+
+/// What the canvas paints.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Drawable {
+    Primitive(Primitive),
+    PenStroke(PenStroke),
+}
+
+impl Drawable {
+    pub fn bounds(&self) -> Option<(Pt, Pt)> {
+        match self {
+            Drawable::Primitive(primitive) => primitive.bounds(),
+            Drawable::PenStroke(stroke) => stroke.bounds(),
         }
-        let pad = self.stroke.map_or(0.0, |s| s.width / 2.0);
-        Some((Pt::new(min.x - pad, min.y - pad), Pt::new(max.x + pad, max.y + pad)))
+    }
+}
+
+/// The engine draws a pressure stroke as one path per segment, each with its
+/// own width, which is far too many paths to tessellate and paint every frame.
+/// This turns runs of connected one-segment strokes of the same color back into
+/// [`PenStroke`]s, keeping the painting order.
+pub fn join_pen_strokes(primitives: Vec<Primitive>) -> Vec<Drawable> {
+    let mut out = Vec::with_capacity(primitives.len());
+    for primitive in primitives {
+        let Some((from, seg, StrokeStyle { width, color })) = pen_segment(&primitive) else {
+            out.push(Drawable::Primitive(primitive));
+            continue;
+        };
+        match out.last_mut() {
+            Some(Drawable::PenStroke(stroke)) if stroke.continues_at(from, color) => {
+                if stroke.segments.len() > MAX_SEGMENTS_PER_CHUNK {
+                    let end_width = stroke.widths.last().copied().unwrap_or(width);
+                    out.push(Drawable::PenStroke(PenStroke::start(from, end_width, seg, width, color)));
+                } else {
+                    stroke.segments.push(seg);
+                    stroke.widths.push(width);
+                }
+            }
+            _ => out.push(Drawable::PenStroke(PenStroke::start(from, width, seg, width, color))),
+        }
+    }
+    out
+}
+
+/// The start, the segment and the style of a stroke of exactly one segment.
+fn pen_segment(primitive: &Primitive) -> Option<(Pt, Seg, StrokeStyle)> {
+    match (primitive.fill, primitive.stroke, primitive.segments.as_slice()) {
+        (None, Some(stroke), &[Seg::MoveTo(from), seg @ (Seg::LineTo(_) | Seg::CubicTo { .. })]) => {
+            Some((from, seg, stroke))
+        }
+        _ => None,
     }
 }
 
@@ -316,7 +397,14 @@ fn conic_segments(t: Affine, cx: f64, cy: f64, a: f64, b: f64, angle: f64) -> Op
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pizarra::{geom::Angle, point::ScreenUnit, style::Stroke};
+    use pizarra::{
+        app::{MouseButton, Pizarra, SelectedTool},
+        geom::Angle,
+        point::ScreenUnit,
+        shape::ShapeTool,
+        style::Stroke,
+        ui::Flags,
+    };
 
     fn approx(a: Pt, b: Pt) -> bool {
         a.distance(b) < 1e-9
@@ -454,6 +542,135 @@ mod tests {
         let drawn: usize =
             prims.iter().map(|p| p.segments.iter().filter(|s| matches!(s, Seg::LineTo(_))).count()).sum();
         assert_eq!(drawn, 1000);
+    }
+
+    fn segment(from: (f64, f64), to: (f64, f64), width: f64, color: Color) -> Primitive {
+        Primitive {
+            segments: vec![Seg::MoveTo(Pt::new(from.0, from.1)), Seg::LineTo(Pt::new(to.0, to.1))],
+            fill: None,
+            stroke: Some(StrokeStyle { width, color }),
+        }
+    }
+
+    fn pen_strokes(drawables: &[Drawable]) -> Vec<&PenStroke> {
+        drawables
+            .iter()
+            .map(|d| match d {
+                Drawable::PenStroke(stroke) => stroke,
+                other => panic!("expected a pen stroke, got {other:?}"),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_pressure_stroke_from_the_engine_becomes_one_pen_stroke() {
+        let mut controller = Pizarra::new(Vec2D::new_screen(800.0, 600.0), Default::default());
+        controller.set_tool(SelectedTool::Shape(ShapeTool::Path));
+        let at = |i: u32| Vec2D::new_screen(50.0 + f64::from(i) * 3.0, 100.0 + f64::from(i % 5));
+
+        let moves = 100;
+        controller.handle_mouse_button_pressed_pressure(MouseButton::Left, at(0), 0.1, None);
+        for i in 1..=moves {
+            let pressure = f64::from(i) / f64::from(moves);
+            controller.handle_mouse_move_pressure(at(i), pressure, Flags::default(), None);
+        }
+        controller.handle_mouse_button_released_pressure(MouseButton::Left, at(moves), 0.0, Flags::default(), None);
+
+        let commands = controller.draw_commands_for_screen();
+        assert_eq!(commands.len(), moves as usize, "the engine draws one path per segment");
+
+        // Seams must still meet exactly after a transform.
+        let world = Affine { xx: 1.7, yx: 0.3, xy: -0.3, yy: 1.7, x0: 13.1, y0: 7.7 };
+        let drawables = join_pen_strokes(primitives(&commands, world, Affine::IDENTITY));
+        let strokes = pen_strokes(&drawables);
+        assert_eq!(strokes.len(), 1);
+        assert_eq!(strokes[0].segments.len(), moves as usize + 1);
+        assert_eq!(strokes[0].widths.len(), strokes[0].segments.len());
+        let (first, last) = (strokes[0].widths[0], *strokes[0].widths.last().unwrap());
+        assert!(first < last, "pressure grows along the stroke: {first} -> {last}");
+    }
+
+    #[test]
+    fn only_connected_segments_of_one_color_are_joined() {
+        let (white, black) = (Color::white(), Color::black());
+        let drawables = join_pen_strokes(vec![
+            segment((0.0, 0.0), (1.0, 0.0), 1.0, white),
+            segment((1.0, 0.0), (2.0, 0.0), 3.0, white),
+            // Same color, but it starts somewhere else.
+            segment((5.0, 5.0), (6.0, 5.0), 1.0, white),
+            // Connected, but in another color.
+            segment((6.0, 5.0), (7.0, 5.0), 1.0, black),
+        ]);
+
+        let strokes = pen_strokes(&drawables);
+        assert_eq!(strokes.len(), 3);
+        assert_eq!(strokes[0].widths, [1.0, 1.0, 3.0]);
+        assert_eq!(strokes[1].segments.len(), 2);
+        assert_eq!(strokes[2].color, black);
+    }
+
+    #[test]
+    fn other_primitives_stay_as_they_are_and_in_order() {
+        let white = Color::white();
+        let filled = Primitive {
+            segments: vec![Seg::MoveTo(Pt::new(0.0, 0.0)), Seg::LineTo(Pt::new(1.0, 0.0))],
+            fill: Some(white),
+            stroke: None,
+        };
+        let long = Primitive {
+            segments: vec![
+                Seg::MoveTo(Pt::new(0.0, 0.0)),
+                Seg::LineTo(Pt::new(1.0, 0.0)),
+                Seg::LineTo(Pt::new(1.0, 1.0)),
+            ],
+            fill: None,
+            stroke: Some(StrokeStyle { width: 2.0, color: white }),
+        };
+
+        let drawables = join_pen_strokes(vec![
+            segment((0.0, 0.0), (1.0, 0.0), 1.0, white),
+            filled.clone(),
+            segment((1.0, 0.0), (2.0, 0.0), 1.0, white),
+            long.clone(),
+        ]);
+
+        assert_eq!(drawables.len(), 4);
+        assert!(matches!(drawables[0], Drawable::PenStroke(_)));
+        assert_eq!(drawables[1], Drawable::Primitive(filled));
+        assert!(matches!(drawables[2], Drawable::PenStroke(_)));
+        assert_eq!(drawables[3], Drawable::Primitive(long));
+    }
+
+    #[test]
+    fn long_pen_strokes_are_chunked_without_gaps_in_position_or_width() {
+        let count = 1000;
+        let width = |i: usize| 1.0 + (i % 11) as f64;
+        let drawables = join_pen_strokes(
+            (0..count).map(|i| segment((i as f64, 0.0), ((i + 1) as f64, 0.0), width(i), Color::white())).collect(),
+        );
+
+        let strokes = pen_strokes(&drawables);
+        assert!(strokes.len() > 1);
+        for pair in strokes.windows(2) {
+            assert!(pair[0].segments.len() <= MAX_SEGMENTS_PER_CHUNK + 1);
+            let end = pair[0].segments.last().unwrap().end().unwrap();
+            assert_eq!(pair[1].segments[0], Seg::MoveTo(end));
+            assert_eq!(pair[1].widths[0], *pair[0].widths.last().unwrap());
+        }
+        let drawn: usize = strokes.iter().map(|s| s.segments.len() - 1).sum();
+        assert_eq!(drawn, count);
+    }
+
+    #[test]
+    fn pen_stroke_bounds_fit_its_widest_point() {
+        let (white, width) = (Color::white(), 6.0);
+        let drawables = join_pen_strokes(vec![
+            segment((0.0, 0.0), (10.0, 0.0), width, white),
+            segment((10.0, 0.0), (20.0, 0.0), 1.0, white),
+        ]);
+
+        let (min, max) = drawables[0].bounds().unwrap();
+        assert_eq!((min, max), (Pt::new(-3.0, -3.0), Pt::new(23.0, 3.0)));
     }
 
     #[test]

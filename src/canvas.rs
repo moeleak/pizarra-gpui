@@ -8,10 +8,12 @@
 //! drawn and the tool helpers are cheap and rebuilt every frame.
 
 use gpui::{Bounds, Hsla, Path, PathBuilder, PathStyle, Pixels, Window, point, px};
-use lyon::tessellation::{FillOptions, LineCap, LineJoin, StrokeOptions};
+use lyon::tessellation::{
+    BuffersBuilder, FillOptions, LineCap, LineJoin, StrokeOptions, StrokeTessellator, StrokeVertex, VertexBuffers,
+};
 use pizarra::draw_commands::DrawCommand;
 
-use crate::geometry::{self, Affine, Primitive, Seg};
+use crate::geometry::{self, Affine, Drawable, PenStroke, Primitive, Seg};
 use crate::theme;
 
 /// Maximum distance, in logical pixels, between a flattened curve and the real
@@ -31,9 +33,12 @@ pub fn transforms(controller: &pizarra::app::Pizarra, bounds: Bounds<Pixels>) ->
 
 pub fn build(commands: &[DrawCommand], world: Affine, screen: Affine, viewport: Bounds<Pixels>) -> PaintedPaths {
     let mut out = Vec::new();
-    for primitive in geometry::primitives(commands, world, screen) {
-        if is_visible(&primitive, viewport) {
-            push_paths(&mut out, &primitive);
+    for drawable in geometry::join_pen_strokes(geometry::primitives(commands, world, screen)) {
+        if is_visible(&drawable, viewport) {
+            match &drawable {
+                Drawable::Primitive(primitive) => push_paths(&mut out, primitive),
+                Drawable::PenStroke(stroke) => push_pen_stroke(&mut out, stroke),
+            }
         }
     }
     out
@@ -45,8 +50,8 @@ pub fn paint(window: &mut Window, paths: &PaintedPaths) {
     }
 }
 
-fn is_visible(primitive: &Primitive, viewport: Bounds<Pixels>) -> bool {
-    let Some((min, max)) = primitive.bounds() else { return false };
+fn is_visible(drawable: &Drawable, viewport: Bounds<Pixels>) -> bool {
+    let Some((min, max)) = drawable.bounds() else { return false };
     let (left, top) = (f64::from(viewport.origin.x), f64::from(viewport.origin.y));
     let (right, bottom) = (left + f64::from(viewport.size.width), top + f64::from(viewport.size.height));
     max.x >= left && min.x <= right && max.y >= top && min.y <= bottom
@@ -71,6 +76,42 @@ fn push_paths(out: &mut PaintedPaths, primitive: &Primitive) {
         if let Some(path) = build_path(builder, &primitive.segments) {
             out.push((path, theme::to_hsla(stroke.color)));
         }
+    }
+}
+
+/// Tessellates with lyon directly because `PathBuilder` has no per-point width.
+fn push_pen_stroke(out: &mut PaintedPaths, stroke: &PenStroke) {
+    const WIDTH: usize = 0;
+
+    let p = |pt: geometry::Pt| lyon::math::point(pt.x as f32, pt.y as f32);
+    let mut builder = lyon::path::Path::builder_with_attributes(1);
+    for (seg, width) in stroke.segments.iter().zip(&stroke.widths) {
+        let attributes = [*width as f32];
+        match *seg {
+            Seg::MoveTo(to) => {
+                builder.begin(p(to), &attributes);
+            }
+            Seg::LineTo(to) => {
+                builder.line_to(p(to), &attributes);
+            }
+            Seg::CubicTo { c1, c2, to } => {
+                builder.cubic_bezier_to(p(c1), p(c2), p(to), &attributes);
+            }
+            Seg::Close => {}
+        }
+    }
+    builder.end(false);
+
+    let options = StrokeOptions::default()
+        .with_variable_line_width(WIDTH)
+        .with_line_cap(LineCap::Round)
+        .with_line_join(LineJoin::Round)
+        .with_tolerance(TOLERANCE);
+    let mut buffers: VertexBuffers<lyon::math::Point, u16> = VertexBuffers::new();
+    let mut output = BuffersBuilder::new(&mut buffers, |vertex: StrokeVertex| vertex.position());
+    match StrokeTessellator::new().tessellate_path(&builder.build(), &options, &mut output) {
+        Ok(_) => out.push((PathBuilder::build_path(buffers), theme::to_hsla(stroke.color))),
+        Err(err) => log::warn!("could not tessellate a pen stroke: {err}"),
     }
 }
 
